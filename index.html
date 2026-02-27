@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OC South - Pots FATE Tracker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f0c29, #1a1a4e, #24243e);
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 24px;
+    }
+    #root { max-width: 520px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const FATE_TIMES = [5, 35, 65, 95, 125, 155];
+    const FATE_LOCATIONS = ["North", "South", "North", "South", "North", "South"];
+    const TOLERANCE = 5;
+
+    function fmtShort(mins) {
+      if (mins < 0) return "—";
+      const m = Math.floor(mins);
+      const s = Math.round((mins - m) * 60);
+      return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+
+    function parseMins(h, m, s) {
+      return (parseInt(h) || 0) * 60 + (parseInt(m) || 0) + (parseInt(s) || 0) / 60;
+    }
+
+    function FateTracker() {
+      const [playerH, setPlayerH] = useState("");
+      const [playerM, setPlayerM] = useState("");
+      const [playerS, setPlayerS] = useState("");
+      const [offset, setOffset] = useState(0);
+      const [uncertainty, setUncertainty] = useState(TOLERANCE);
+      const [calibrated, setCalibrated] = useState(false);
+      const [calibCount, setCalibCount] = useState(0);
+      const [startRealTime, setStartRealTime] = useState(null);
+      const [startInstanceTime, setStartInstanceTime] = useState(null);
+      const [tracking, setTracking] = useState(false);
+      const [now, setNow] = useState(Date.now());
+      const [statusMsg, setStatusMsg] = useState("");
+
+      useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(interval);
+      }, []);
+
+      const currentInstanceTime = useCallback(() => {
+        if (!tracking || !startRealTime) return 0;
+        return startInstanceTime + (now - startRealTime) / 60000;
+      }, [tracking, startRealTime, startInstanceTime, now]);
+
+      const getSchedule = useCallback(() => {
+        const instTime = currentInstanceTime();
+        return FATE_TIMES.map((t, i) => {
+          const adj = t + offset;
+          const remaining = adj - instTime;
+          const earlyRemaining = remaining - uncertainty;
+          const lateRemaining = remaining + uncertainty;
+          let status = "passed";
+          if (earlyRemaining > 0.15) status = "upcoming";
+          else if (lateRemaining > -0.5) status = "window";
+          return { num: i + 1, time: adj, loc: FATE_LOCATIONS[i], remaining, earlyRemaining, lateRemaining, status };
+        });
+      }, [currentInstanceTime, offset, uncertainty]);
+
+      const nextFate = useCallback(() => {
+        return getSchedule().find((f) => f.status === "upcoming" || f.status === "window");
+      }, [getSchedule]);
+
+      function handleStart() {
+        const t = parseMins(playerH, playerM, playerS);
+        setStartInstanceTime(t);
+        setStartRealTime(Date.now());
+        setTracking(true);
+        setOffset(0);
+        setUncertainty(TOLERANCE);
+        setCalibrated(false);
+        setCalibCount(0);
+        setStatusMsg("Best guess from player timer (±5 min window)");
+      }
+
+      function handleCalibrate(location) {
+        const instTime = currentInstanceTime();
+        const matching = FATE_TIMES
+          .map((t, i) => ({ time: t, loc: FATE_LOCATIONS[i] }))
+          .filter((f) => f.loc === location);
+
+        let bestFateTime = matching[0].time;
+        let bestDist = Infinity;
+        for (const f of matching) {
+          const dist = Math.abs(f.time + offset - instTime);
+          if (dist < bestDist) { bestDist = dist; bestFateTime = f.time; }
+        }
+
+        const newOffset = instTime - bestFateTime;
+        setOffset(newOffset);
+        const newCount = calibCount + 1;
+        setCalibCount(newCount);
+
+        if (newCount === 1) {
+          setUncertainty(1);
+          setCalibrated(true);
+          setStatusMsg(`Calibrated to ${location} FATE! Shifted by ${newOffset > 0 ? "+" : ""}${newOffset.toFixed(1)} min. Now ±1 min.`);
+        } else {
+          setUncertainty(0.5);
+          setStatusMsg(`Re-calibrated to ${location} FATE! Precision: ±30 sec.`);
+        }
+      }
+
+      function handleReset() {
+        setTracking(false);
+        setPlayerH(""); setPlayerM(""); setPlayerS("");
+        setOffset(0); setUncertainty(TOLERANCE);
+        setCalibrated(false); setCalibCount(0);
+        setStartRealTime(null); setStartInstanceTime(null);
+        setStatusMsg("");
+      }
+
+      const instTime = currentInstanceTime();
+      const schedule = getSchedule();
+      const next = nextFate();
+      const confidenceColor = uncertainty <= 0.5 ? "#34d399" : uncertainty <= 1 ? "#6ee7b7" : uncertainty <= 3 ? "#fcd34d" : "#fdba74";
+      const confidenceLabel = uncertainty <= 0.5 ? "High" : uncertainty <= 1 ? "Good" : uncertainty <= 3 ? "Fair" : "Estimate";
+
+      const cardStyle = { background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, border: "1px solid rgba(255,255,255,0.1)" };
+      const inputStyle = { width: 64, padding: "10px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#e0e0e0", fontSize: 18, textAlign: "center", outline: "none" };
+      const btnPrimary = { width: "100%", padding: "12px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #a855f7)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" };
+
+      return (
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, textAlign: "center", marginBottom: 4, color: "#c4b5fd" }}>
+            Occult Crescent South
+          </h1>
+          <p style={{ textAlign: "center", fontSize: 13, color: "#8b83a8", marginBottom: 24 }}>
+            Pots FATE Tracker
+          </p>
+
+          {!tracking ? (
+            <div style={cardStyle}>
+              <label style={{ fontSize: 14, color: "#a5a0c0", marginBottom: 12, display: "block" }}>
+                Oldest player's time in zone:
+              </label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                {[
+                  { val: playerH, set: setPlayerH, label: "hrs", max: 3 },
+                  { val: playerM, set: setPlayerM, label: "min", max: 59 },
+                  { val: playerS, set: setPlayerS, label: "sec", max: 59 },
+                ].map((f, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <input type="number" min="0" max={f.max} placeholder="00" value={f.val} onChange={(e) => f.set(e.target.value)} style={inputStyle} />
+                    <span style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{f.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "#7a7394", marginBottom: 16, lineHeight: 1.5 }}>
+                Assumes the oldest player created the instance. Predictions start ±5 min — calibrate when you see a FATE to tighten it.
+              </p>
+              <button onClick={handleStart} style={btnPrimary}>Start Tracking</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, padding: "10px 16px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#8b83a8" }}>Instance Age</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "#c4b5fd" }}>{fmtShort(instTime)}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "#8b83a8" }}>Accuracy</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: confidenceColor }}>
+                    {confidenceLabel} <span style={{ fontWeight: 400, fontSize: 12 }}>(±{uncertainty <= 1 ? `${Math.round(uncertainty * 60)}s` : `${uncertainty}m`})</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: "#8b83a8" }}>Max Life</div>
+                  <div style={{ fontSize: 14, color: instTime > 170 ? "#f87171" : "#8b83a8" }}>{fmtShort(Math.max(0, 180 - instTime))} left</div>
+                </div>
+              </div>
+
+              {next ? (
+                <div style={{
+                  borderRadius: 14, padding: 24, marginBottom: 16, textAlign: "center",
+                  background: next.loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))" : "linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))",
+                  border: `1px solid ${next.loc === "North" ? "rgba(59,130,246,0.3)" : "rgba(249,115,22,0.3)"}`,
+                }}>
+                  <div style={{ fontSize: 12, color: "#8b83a8", marginBottom: 6 }}>Next Pots FATE</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: next.loc === "North" ? "#93c5fd" : "#fdba74", display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
+                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, background: next.loc === "North" ? "rgba(59,130,246,0.25)" : "rgba(249,115,22,0.25)" }}>{next.loc}</span>
+                    FATE #{next.num}
+                  </div>
+                  {next.status === "window" ? (
+                    <div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>⚡ Could be active now!</div>
+                      <div style={{ fontSize: 12, color: "#8b83a8", marginTop: 4 }}>Window open — up to {fmtShort(Math.max(0, next.lateRemaining))} from now</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 13, color: "#8b83a8", marginBottom: 4 }}>Spawns in</div>
+                      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6 }}>
+                        <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.earlyRemaining))}</span>
+                        <span style={{ fontSize: 32, fontWeight: 700, color: "#e0e0e0" }}>{fmtShort(Math.max(0, next.remaining))}</span>
+                        <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.lateRemaining))}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#8b83a8", marginTop: 4 }}>early — best guess — late</div>
+                      <div style={{ marginTop: 14, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", position: "relative", overflow: "hidden" }}>
+                        {(() => {
+                          const total = 30;
+                          const center = Math.max(0, Math.min(next.remaining, total));
+                          const early = Math.max(0, center - uncertainty);
+                          const late = Math.min(total, center + uncertainty);
+                          return <div style={{ position: "absolute", left: `${(early / total) * 100}%`, width: `${((late - early) / total) * 100}%`, height: "100%", borderRadius: 3, background: `linear-gradient(90deg, ${confidenceColor}44, ${confidenceColor}aa, ${confidenceColor}44)` }} />;
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ ...cardStyle, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", textAlign: "center", color: "#fca5a5", marginBottom: 16 }}>
+                  No more FATEs expected this instance.
+                </div>
+              )}
+
+              <div style={{ ...cardStyle, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#a5a0c0", marginBottom: 10 }}>Schedule</div>
+                {schedule.map((f) => (
+                  <div key={f.num} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "7px 12px", borderRadius: 8, marginBottom: 3,
+                    opacity: f.status === "passed" ? 0.35 : 1,
+                    background: f.status === "window" ? "rgba(251,191,36,0.1)" : f.status === "upcoming" ? "rgba(255,255,255,0.02)" : "transparent",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 600, background: f.loc === "North" ? "rgba(59,130,246,0.2)" : "rgba(249,115,22,0.2)", color: f.loc === "North" ? "#93c5fd" : "#fdba74" }}>{f.loc[0]}</span>
+                      <span style={{ fontSize: 13 }}>#{f.num}</span>
+                      <span style={{ fontSize: 11, color: "#666" }}>~{Math.round(f.time)}m</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#8b83a8" }}>
+                      {f.status === "passed" ? "✓" : f.status === "window" ? <span style={{ color: "#fbbf24" }}>⚡ Window</span> : <span>{fmtShort(Math.max(0, f.earlyRemaining))} – {fmtShort(Math.max(0, f.lateRemaining))}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ ...cardStyle, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#a5a0c0", marginBottom: 6 }}>
+                  {calibrated ? "Re-Calibrate" : "Calibrate"} — FATE Just Popped?
+                </div>
+                <p style={{ fontSize: 12, color: "#7a7394", marginBottom: 14, lineHeight: 1.5 }}>
+                  When you see a FATE spawn, tap the matching location button to sync the schedule.
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => handleCalibrate("North")} style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 20 }}>⬆</span>
+                    <span>North Popped</span>
+                  </button>
+                  <button onClick={() => handleCalibrate("South")} style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #c2410c, #f97316)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 20 }}>⬇</span>
+                    <span>South Popped</span>
+                  </button>
+                </div>
+                {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
+              </div>
+
+              <button onClick={handleReset} style={{ ...btnPrimary, background: "rgba(255,255,255,0.06)", color: "#8b83a8" }}>Reset</button>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<FateTracker />);
+  </script>
+</body>
+</html>
+
