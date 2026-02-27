@@ -62,6 +62,11 @@
       return `${m}:${s.toString().padStart(2, "0")}`;
     }
 
+    function fmtTime(mins) {
+      const d = new Date(Date.now() + mins * 60000);
+      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    }
+
     function parseMins(h, m, s) {
       return (parseInt(h) || 0) * 60 + (parseInt(m) || 0) + (parseInt(s) || 0) / 60;
     }
@@ -165,10 +170,10 @@
         if (newCount === 1) {
           setUncertainty(1);
           setCalibrated(true);
-          setStatusMsg(`Calibrated to ${location} FATE! Shifted by ${newOffset > 0 ? "+" : ""}${newOffset.toFixed(1)} min. Now ±1 min.`);
+          setStatusMsg(`Calibrated to ${location} defeat! Shifted by ${newOffset > 0 ? "+" : ""}${newOffset.toFixed(1)} min. Now ±1 min.`);
         } else {
           setUncertainty(0.5);
-          setStatusMsg(`Re-calibrated to ${location} FATE! Precision: ±30 sec.`);
+          setStatusMsg(`Re-calibrated to ${location} defeat! Precision: ±30 sec.`);
         }
       }
 
@@ -299,7 +304,7 @@
                       <span style={{ fontSize: 11, color: "#666" }}>~{Math.round(f.time)}m</span>
                     </div>
                     <div style={{ fontSize: 12, color: "#8b83a8" }}>
-                      {f.status === "passed" ? "✓" : f.status === "window" ? <span style={{ color: "#fbbf24" }}>⚡ Window</span> : <span>{fmtShort(Math.max(0, f.earlyRemaining))} – {fmtShort(Math.max(0, f.lateRemaining))}</span>}
+                      {f.status === "passed" ? "✓" : f.status === "window" ? <span style={{ color: "#fbbf24" }}>⚡ Window</span> : <span>~{fmtTime(f.remaining)}</span>}
                     </div>
                   </div>
                 ))}
@@ -307,19 +312,19 @@
 
               <div style={{ ...cardStyle, marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#a5a0c0", marginBottom: 6 }}>
-                  {calibrated ? "Re-Calibrate" : "Calibrate"} — FATE Just Popped?
+                  {calibrated ? "Re-Calibrate" : "Calibrate"} — FATE Just Defeated?
                 </div>
                 <p style={{ fontSize: 12, color: "#7a7394", marginBottom: 14, lineHeight: 1.5 }}>
-                  When you see a FATE spawn, tap the matching location button to sync the schedule.
+                  When a FATE is defeated, tap the matching location button to sync the schedule.
                 </p>
                 <div style={{ display: "flex", gap: 10 }}>
                   <button onClick={() => handleCalibrate("North")} style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 20 }}>⬆</span>
-                    <span>North Popped</span>
+                    <span>North Defeated</span>
                   </button>
                   <button onClick={() => handleCalibrate("South")} style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #c2410c, #f97316)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 20 }}>⬇</span>
-                    <span>South Popped</span>
+                    <span>South Defeated</span>
                   </button>
                 </div>
                 {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
