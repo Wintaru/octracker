@@ -91,10 +91,18 @@
             setCalibCount(state.uncertainty <= 0.5 ? 2 : state.uncertainty <= 1 ? 1 : 0);
             setTracking(true);
             setStatusMsg("Loaded from shared link");
-            history.replaceState(null, '', window.location.pathname);
           }
         }
       }, []);
+
+      useEffect(() => {
+        if (tracking && startRealTime) {
+          const code = encodeShareState(startRealTime, startInstanceTime, offset, uncertainty);
+          history.replaceState(null, '', '#' + code);
+        } else if (!tracking) {
+          history.replaceState(null, '', window.location.pathname);
+        }
+      }, [tracking, startRealTime, startInstanceTime, offset, uncertainty]);
 
       useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000);
