@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<script>
+  var path = window.location.pathname.slice(1);
+  if (path) {
+    window.location.replace(window.location.origin + '/#' + path);
+  } else {
+    window.location.replace(window.location.origin);
+  }
+</script>
+</body>
+</html>
