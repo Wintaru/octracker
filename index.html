@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#d4c078" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet" />
   <title>OC South - Pots FATE Tracker</title>
   <style>
@@ -463,9 +467,16 @@
                 {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
               </div>
 
+              <div style={{ ...cardStyle, marginBottom: 16, textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: "#6e6b65", marginBottom: 4 }}>Tracker Code</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "#d4c078", fontFamily: "monospace", letterSpacing: 0.5 }}>
+                  {encodeShareState(startRealTime, startInstanceTime, offset, uncertainty)}
+                </div>
+              </div>
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={handleShare} style={{ ...btnBase, flex: 1, background: "linear-gradient(135deg, #8c7635, #bfa34c)", border: "1px solid rgba(191,163,76,0.4)" }}>Share Link</button>
-                <button onClick={handleReset} style={{ ...btnBase, flex: 1, background: "rgba(16,33,62,0.6)", color: "#a9a6a0", border: "1px solid rgba(191,163,76,0.15)" }}>Reset</button>
+                <button onClick={handleShare} style={{ ...btnBase, flex: 1, background: "linear-gradient(135deg, #8c7635, #bfa34c)", border: "1px solid rgba(191,163,76,0.4)" }}>Copy Link</button>
+                <button onClick={() => { const code = encodeShareState(startRealTime, startInstanceTime, offset, uncertainty); navigator.clipboard.writeText(code).then(() => setStatusMsg("Code copied!")).catch(() => setStatusMsg(code)); }} style={{ ...btnBase, flex: 1, background: "rgba(16,33,62,0.6)", color: "#d4c078", border: "1px solid rgba(191,163,76,0.3)" }}>Copy Code</button>
+                <button onClick={handleReset} style={{ ...btnBase, flex: "0 0 auto", padding: "12px 14px", background: "rgba(16,33,62,0.6)", color: "#6e6b65", border: "1px solid rgba(191,163,76,0.15)" }}>Reset</button>
               </div>
             </>
           )}
