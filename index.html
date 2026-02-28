@@ -38,31 +38,65 @@
     function fateLoc(n) { return n % 2 === 0 ? "North" : "South"; }
     const TOLERANCE = 5;
     const SHARE_EPOCH = 1735689600000; // Jan 1 2025 UTC
+    const WORD_CYCLE = 16384; // ~11.4 day cycle for modular time encoding
+    const WORDS = [
+      "flame","frost","stone","wind","thunder","water","shadow","light","ember","blaze","gale","quake","tide","spark","void","bloom",
+      "dawn","dusk","moon","solar","lunar","astral","umbral","star","nova","comet","eclipse","zenith","corona","aurora","cosmos","nebula",
+      "iron","gold","silver","bronze","cobalt","steel","brass","copper","ruby","pearl","opal","onyx","jade","amber","topaz","garnet",
+      "ridge","vale","mesa","cliff","gorge","knoll","peak","dune","marsh","grove","glade","oasis","delta","basin","bluff","crest",
+      "oak","pine","cedar","maple","willow","ivy","fern","moss","lotus","lily","rose","thorn","laurel","palm","reed","sage",
+      "hawk","wolf","crane","raven","eagle","falcon","wren","orca","viper","moth","drake","wyrm","tiger","fox","stag","lark",
+      "shard","crystal","prism","rune","glyph","sigil","seal","orb","helm","blade","lance","shield","crown","ring","staff","tome",
+      "aether","arcane","oracle","knight","warden","herald","cipher","echo","myth","fable","rift","nexus","aegis","pyre","hymn","creed",
+      "mist","rain","snow","haze","storm","breeze","sleet","cloud","dust","smoke","ash","dew","gust","drift","flurry","squall",
+      "tower","spire","gate","arch","vault","forge","haven","keep","cairn","altar","shrine","bridge","harbor","beacon","fort","well",
+      "river","shore","pond","brook","spring","falls","bay","trail","path","hollow","cavern","grotto","ravine","fjord","shoal","inlet",
+      "azure","crimson","ivory","scarlet","violet","coral","obsidian","verdant","pale","bright","deep","wild","silent","ancient","swift","bold",
+      "grace","honor","valor","fury","pride","hope","fate","glory","peace","wrath","quest","oath","vigil","trial","bond","spirit",
+      "kindle","whisper","wander","soar","surge","shatter","mend","cleave","weave","summon","invoke","banish","temper","quench","ignite","meld",
+      "north","south","east","west","above","below","inner","outer","first","last","high","low","near","far","true","free",
+      "serpent","phoenix","griffin","chimera","sphinx","hydra","titan","golem","djinn","sprite","nymph","sylph","angel","demon","giant","shade"
+    ];
 
+    // Packs 4 values into 32 bits, encoded as 4 words (8 bits each)
+    // t: 14 bits (minutes since epoch mod 16384, ~11 day cycle)
+    // i: 8 bits (instance time in minutes, 0-255)
+    // o: 8 bits (offset: round(offset*4)+128, ±32 min at 0.25 precision)
+    // u: 2 bits (uncertainty level)
     function encodeShareState(startRealTime, startInstanceTime, offset, uncertainty) {
-      const t = Math.floor((startRealTime - SHARE_EPOCH) / 60000);
-      const i = Math.round(startInstanceTime);
-      const o = Math.round(offset * 10) + 300;
+      const t = Math.floor((startRealTime - SHARE_EPOCH) / 60000) & 0x3FFF;
+      const i = Math.min(255, Math.max(0, Math.round(startInstanceTime)));
+      const o = Math.min(255, Math.max(0, Math.round(offset * 4) + 128));
       const u = uncertainty >= 5 ? 0 : uncertainty >= 3 ? 3 : uncertainty >= 1 ? 1 : 2;
-      return t.toString(36).padStart(4, '0')
-           + i.toString(36).padStart(2, '0')
-           + o.toString(36).padStart(2, '0')
-           + u.toString(36);
+      const v = (t << 18) | (i << 10) | (o << 2) | u;
+      return [WORDS[(v >>> 24) & 0xFF], WORDS[(v >>> 16) & 0xFF], WORDS[(v >>> 8) & 0xFF], WORDS[v & 0xFF]].join("-");
     }
 
     function decodeShareState(code) {
-      if (!code || code.length !== 9) return null;
-      const t = parseInt(code.slice(0, 4), 36);
-      const i = parseInt(code.slice(4, 6), 36);
-      const o = parseInt(code.slice(6, 8), 36);
-      const u = parseInt(code.slice(8, 9), 36);
-      if ([t, i, o, u].some(isNaN)) return null;
-      return {
-        startRealTime: t * 60000 + SHARE_EPOCH,
-        startInstanceTime: i,
-        offset: (o - 300) / 10,
-        uncertainty: u === 0 ? 5 : u === 3 ? 3 : u === 1 ? 1 : 0.5,
-      };
+      if (!code) return null;
+      // Legacy 9-char base36 format
+      if (code.length === 9 && !code.includes("-")) {
+        const t = parseInt(code.slice(0, 4), 36);
+        const i = parseInt(code.slice(4, 6), 36);
+        const o = parseInt(code.slice(6, 8), 36);
+        const u = parseInt(code.slice(8, 9), 36);
+        if ([t, i, o, u].some(isNaN)) return null;
+        return { startRealTime: t * 60000 + SHARE_EPOCH, startInstanceTime: i, offset: (o - 300) / 10, uncertainty: u === 0 ? 5 : u === 3 ? 3 : u === 1 ? 1 : 0.5 };
+      }
+      // Word-based format
+      const parts = code.split("-");
+      if (parts.length !== 4) return null;
+      const idx = parts.map(w => WORDS.indexOf(w.toLowerCase()));
+      if (idx.some(j => j === -1)) return null;
+      const v = (idx[0] << 24) | (idx[1] << 16) | (idx[2] << 8) | idx[3];
+      const tMod = (v >>> 18) & 0x3FFF;
+      const i = (v >>> 10) & 0xFF;
+      const oEnc = (v >>> 2) & 0xFF;
+      const u = v & 0x3;
+      const nowMins = Math.floor((Date.now() - SHARE_EPOCH) / 60000);
+      const diff = ((nowMins - tMod) % WORD_CYCLE + WORD_CYCLE) % WORD_CYCLE;
+      const t = nowMins - diff;
+      return { startRealTime: t * 60000 + SHARE_EPOCH, startInstanceTime: i, offset: (oEnc - 128) / 4, uncertainty: u === 0 ? 5 : u === 3 ? 3 : u === 1 ? 1 : 0.5 };
     }
 
     function fmtShort(mins) {
@@ -79,6 +113,7 @@
 
     function FateTracker() {
       const [playerMin, setPlayerMin] = useState("");
+      const [joinCode, setJoinCode] = useState("");
       const [offset, setOffset] = useState(0);
       const [uncertainty, setUncertainty] = useState(TOLERANCE);
       const [calibCount, setCalibCount] = useState(0);
@@ -203,7 +238,20 @@
         });
       }
 
-      const instTime = currentInstanceTime();
+      function handleJoin() {
+        const code = joinCode.trim().toLowerCase();
+        const state = decodeShareState(code);
+        if (!state) { setStatusMsg("Invalid tracker code"); return; }
+        setStartRealTime(state.startRealTime);
+        setStartInstanceTime(state.startInstanceTime);
+        setOffset(state.offset);
+        setUncertainty(state.uncertainty);
+        setCalibCount(state.uncertainty <= 0.5 ? 2 : state.uncertainty <= 1 ? 1 : 0);
+        setTracking(true);
+        setJoinCode("");
+        setStatusMsg("Loaded from shared code");
+      }
+
       const schedule = getSchedule();
       const upcoming = schedule.filter(f => f.status === "upcoming" || f.status === "window");
       const next = upcoming[0] || null;
@@ -279,6 +327,14 @@
                   <span style={{ fontSize: 18 }}>{"\u2726"}</span>
                   <span>South Pots</span>
                 </button>
+              </div>
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(191,163,76,0.15)" }}>
+                <div style={{ fontSize: 12, color: "#6e6b65", marginBottom: 8 }}>Or join an existing tracker:</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="text" placeholder="flame-frost-stone-wind" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleJoin()} style={{ ...inputStyle, flex: 1, width: "auto", fontSize: 14, textAlign: "left", padding: "8px 10px" }} />
+                  <button onClick={handleJoin} style={{ ...btnBase, width: "auto", padding: "8px 16px", background: "rgba(16,33,62,0.6)", color: "#d4c078", border: "1px solid rgba(191,163,76,0.3)", fontSize: 13 }}>Join</button>
+                </div>
+                {statusMsg && !tracking && <p style={{ fontSize: 11, color: "#fdba74", marginTop: 8 }}>{statusMsg}</p>}
               </div>
             </div>
           ) : (

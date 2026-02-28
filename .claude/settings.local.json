@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(node -e \":*)",
-      "Bash(gh api repos/wintaru/octracker/pages)"
+      "Bash(gh api repos/wintaru/octracker/pages)",
+      "Bash(curl -s https://ffxiv-occult.com)",
+      "Bash(curl -s https://ffxiv-occult.com/assets/js/app-9b9e6ced01813e5777f8f74a38c6f94d.js)",
+      "Bash(curl -sL 'https://ffxiv-eureka.com/anemos')",
+      "Bash(node -e:*)",
+      "Bash(python3 -c:*)"
     ]
   }
 }
