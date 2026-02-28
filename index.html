@@ -52,12 +52,13 @@
           osc.start(ctx.currentTime + i * 0.15);
           osc.stop(ctx.currentTime + i * 0.15 + 0.4);
         });
+        setTimeout(() => ctx.close(), 1000);
       } catch (e) {}
     }
 
     function sendNotification(title, body) {
-      if (Notification.permission === "granted") {
-        new Notification(title, { body, icon: "/images/logo-occult.png" });
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body });
       }
     }
 
@@ -227,6 +228,7 @@
         setUncertainty(TOLERANCE);
         setCalibCount(0);
         setDefeatedIdx(null);
+        notifiedRef.current = null;
         setStatusMsg(`Tracking from ${location} estimate (\u00b15 min window)`);
       }
 
@@ -261,6 +263,7 @@
         setOffset(0); setUncertainty(TOLERANCE);
         setCalibCount(0); setDefeatedIdx(null); setCalibratedAt(null); setCalibratedLoc(null);
         setStartRealTime(null); setStartInstanceTime(null);
+        notifiedRef.current = null;
         setStatusMsg("");
       }
 
@@ -285,6 +288,7 @@
         setCalibCount(state.uncertainty <= 0.5 ? 2 : state.uncertainty <= 1 ? 1 : 0);
         setTracking(true);
         setJoinCode("");
+        notifiedRef.current = null;
         setStatusMsg("Loaded from shared code");
       }
 
