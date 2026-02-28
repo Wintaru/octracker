@@ -211,8 +211,9 @@
 
       const instTime = currentInstanceTime();
       const schedule = getSchedule();
-      const next = nextFate();
-      const afterNext = schedule.filter(f => (f.status === "upcoming" || f.status === "window") && f !== next)[0] || null;
+      const upcoming = schedule.filter(f => f.status === "upcoming" || f.status === "window");
+      const next = upcoming[0] || null;
+      const afterNext = upcoming[1] || null;
       const showConfirmation = calibratedAt && (now - calibratedAt < 10000);
 
       useEffect(() => {
