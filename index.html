@@ -14,6 +14,10 @@
       padding: 24px;
     }
     #root { max-width: 520px; margin: 0 auto; }
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+    }
+    button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
 <body>
@@ -201,6 +205,7 @@
       const instTime = currentInstanceTime();
       const schedule = getSchedule();
       const next = nextFate();
+      const afterNext = schedule.filter(f => (f.status === "upcoming" || f.status === "window") && f !== next)[0] || null;
 
       useEffect(() => {
         if (next && tracking) {
@@ -286,6 +291,7 @@
                         <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.lateRemaining))}</span>
                       </div>
                       <div style={{ fontSize: 11, color: "#8b83a8", marginTop: 4 }}>early — best guess — late</div>
+                      <div style={{ fontSize: 14, color: "#a5a0c0", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
                       <div style={{ marginTop: 14, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", position: "relative", overflow: "hidden" }}>
                         {(() => {
                           const total = 30;
@@ -304,26 +310,20 @@
                 </div>
               )}
 
-              <div style={{ ...cardStyle, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#a5a0c0", marginBottom: 10 }}>Schedule</div>
-                {schedule.map((f) => (
-                  <div key={f.num} style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "7px 12px", borderRadius: 8, marginBottom: 3,
-                    opacity: f.status === "passed" ? 0.35 : 1,
-                    background: f.status === "window" ? "rgba(251,191,36,0.1)" : f.status === "upcoming" ? "rgba(255,255,255,0.02)" : "transparent",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 600, background: f.loc === "North" ? "rgba(59,130,246,0.2)" : "rgba(249,115,22,0.2)", color: f.loc === "North" ? "#93c5fd" : "#fdba74" }}>{f.loc[0]}</span>
-                      <span style={{ fontSize: 13 }}>#{f.num}</span>
-                      <span style={{ fontSize: 11, color: "#666" }}>~{Math.round(f.time)}m</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#8b83a8" }}>
-                      {f.status === "passed" ? "✓" : f.status === "window" ? <span style={{ color: "#fbbf24" }}>⚡ Window</span> : <span>~{fmtTime(f.remaining)}</span>}
-                    </div>
+              {afterNext && (
+                <div style={{
+                  ...cardStyle, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center",
+                }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: "#8b83a8" }}>After That</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: afterNext.loc === "North" ? "#93c5fd" : "#fdba74" }}>{afterNext.loc}</div>
                   </div>
-                ))}
-              </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 18, fontWeight: 600, color: "#e0e0e0" }}>{fmtShort(Math.max(0, afterNext.remaining))}</div>
+                    <div style={{ fontSize: 12, color: "#8b83a8" }}>~{fmtTime(afterNext.remaining)}</div>
+                  </div>
+                </div>
+              )}
 
               <div style={{ ...cardStyle, marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#a5a0c0", marginBottom: 6 }}>
