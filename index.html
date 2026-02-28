@@ -217,6 +217,16 @@
       const showConfirmation = calibratedAt && (now - calibratedAt < 10000);
 
       useEffect(() => {
+        if (!tracking || !next) return;
+        if (next.remaining < -3) {
+          setDefeatedIdx(next.num - 1);
+          setUncertainty(3);
+          setCalibratedAt(null);
+          setStatusMsg(`Auto-advanced past ${next.loc} \u2014 accuracy \u00b13 min`);
+        }
+      }, [tracking, now]);
+
+      useEffect(() => {
         if (next && tracking) {
           const mins = Math.max(0, Math.ceil(next.remaining));
           document.title = `${mins}m - ${next.loc} Pots`;
