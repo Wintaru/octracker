@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet" />
   <title>OC South - Pots FATE Tracker</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { background: #0f0c29; }
+    html { background: #0f0f1a; }
     body {
       min-height: 100vh;
-      background: linear-gradient(135deg, #0f0c29, #1a1a4e, #24243e);
+      background: linear-gradient(135deg, #0f0f1a, #1a1a2e, #16213e);
       background-attachment: fixed;
-      color: #e0e0e0;
+      color: #e8e4dc;
       font-family: 'Segoe UI', system-ui, sans-serif;
       padding: 24px;
     }
@@ -156,7 +157,7 @@
         setUncertainty(TOLERANCE);
         setCalibrated(false);
         setCalibCount(0);
-        setStatusMsg(`Tracking from ${location} estimate (±5 min window)`);
+        setStatusMsg(`Tracking from ${location} estimate (\u00b15 min window)`);
       }
 
       function handleCalibrate(location) {
@@ -178,10 +179,10 @@
         if (newCount === 1) {
           setUncertainty(1);
           setCalibrated(true);
-          setStatusMsg(`Calibrated to ${location} defeat! Shifted by ${newOffset > 0 ? "+" : ""}${newOffset.toFixed(1)} min. Now ±1 min.`);
+          setStatusMsg(`Calibrated to ${location} spawn! Shifted by ${newOffset > 0 ? "+" : ""}${newOffset.toFixed(1)} min. Now \u00b11 min.`);
         } else {
           setUncertainty(0.5);
-          setStatusMsg(`Re-calibrated to ${location} defeat! Precision: ±30 sec.`);
+          setStatusMsg(`Re-calibrated to ${location} spawn! Precision: \u00b130 sec.`);
         }
       }
 
@@ -222,47 +223,56 @@
       const confidenceColor = uncertainty <= 0.5 ? "#34d399" : uncertainty <= 1 ? "#6ee7b7" : uncertainty <= 3 ? "#fcd34d" : "#fdba74";
       const confidenceLabel = uncertainty <= 0.5 ? "High" : uncertainty <= 1 ? "Good" : uncertainty <= 3 ? "Fair" : "Estimate";
 
-      const cardStyle = { background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, border: "1px solid rgba(255,255,255,0.1)" };
-      const inputStyle = { width: 64, padding: "10px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#e0e0e0", fontSize: 18, textAlign: "center", outline: "none" };
-      const btnPrimary = { width: "100%", padding: "12px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7c3aed, #a855f7)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" };
+      const cardStyle = { background: "rgba(16,33,62,0.6)", borderRadius: 4, padding: 16, border: "1px solid rgba(191,163,76,0.25)", boxShadow: "inset 0 1px 0 rgba(191,163,76,0.08)" };
+      const inputStyle = { width: 64, padding: "10px 8px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.3)", background: "rgba(16,33,62,0.8)", color: "#e8e4dc", fontSize: 18, textAlign: "center", outline: "none" };
+      const btnPrimary = { width: "100%", padding: "12px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.2)", background: "linear-gradient(135deg, #7c3aed, #a855f7)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" };
+      const btnNorth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #5b7cd8", background: "linear-gradient(180deg, rgba(30,50,90,0.95), rgba(18,30,60,0.95))", color: "#93c5fd", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(91,124,216,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
+      const btnSouth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #d4a040", background: "linear-gradient(180deg, rgba(65,38,18,0.95), rgba(45,25,12,0.95))", color: "#fdba74", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(212,160,64,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
 
       return (
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, textAlign: "center", marginBottom: 4, color: "#c4b5fd" }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, textAlign: "center", marginBottom: 2, fontFamily: "'Cinzel', serif", background: "linear-gradient(180deg, #d4c078, #bfa34c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             Occult Crescent South
           </h1>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#8b83a8", marginBottom: 24 }}>
+          <p style={{ textAlign: "center", fontSize: 13, color: "#a9a6a0", marginBottom: 12, fontFamily: "'Cinzel', serif", letterSpacing: 1 }}>
             Pots FATE Tracker
           </p>
+          <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(191,163,76,0.5), transparent)", marginBottom: 20 }} />
 
           {!tracking ? (
             <div style={cardStyle}>
-              <label style={{ fontSize: 14, color: "#a5a0c0", marginBottom: 12, display: "block" }}>
+              <label style={{ fontSize: 14, color: "#a9a6a0", marginBottom: 12, display: "block" }}>
                 Estimated minutes until next Pots FATE:
               </label>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <input type="number" min="0" max="60" placeholder="0" value={playerMin} onChange={(e) => setPlayerMin(e.target.value)} style={{ ...inputStyle, width: 100 }} />
-                  <span style={{ fontSize: 11, color: "#666", marginTop: 4 }}>minutes</span>
+                  <span style={{ fontSize: 11, color: "#6e6b65", marginTop: 4 }}>minutes</span>
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "#7a7394", marginBottom: 16, lineHeight: 1.5 }}>
-                Enter your best guess, then tap which location it will be. Predictions start ±5 min — calibrate when a FATE is defeated to tighten it.
+              <p style={{ fontSize: 11, color: "#6e6b65", marginBottom: 16, lineHeight: 1.5 }}>
+                Enter your best guess, then tap which location it will be. Predictions start ±5 min — calibrate when a FATE spawns to tighten it.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => handleStart("North")} style={{ ...btnPrimary, flex: 1, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>North Pots</button>
-                <button onClick={() => handleStart("South")} style={{ ...btnPrimary, flex: 1, background: "linear-gradient(135deg, #c2410c, #f97316)" }}>South Pots</button>
+                <button onClick={() => handleStart("North")} style={btnNorth}>
+                  <span style={{ fontSize: 18 }}>{"\u2726"}</span>
+                  <span>North Pots</span>
+                </button>
+                <button onClick={() => handleStart("South")} style={btnSouth}>
+                  <span style={{ fontSize: 18 }}>{"\u2726"}</span>
+                  <span>South Pots</span>
+                </button>
               </div>
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, padding: "10px 16px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, padding: "10px 16px", borderRadius: 4, background: "rgba(16,33,62,0.4)", border: "1px solid rgba(191,163,76,0.15)" }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "#8b83a8" }}>Time Tracked</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: "#c4b5fd" }}>{fmtShort(instTime)}</div>
+                  <div style={{ fontSize: 11, color: "#a9a6a0" }}>Time Tracked</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "#d4c078" }}>{fmtShort(instTime)}</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "#8b83a8" }}>Accuracy</div>
+                  <div style={{ fontSize: 11, color: "#a9a6a0" }}>Accuracy</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: confidenceColor }}>
                     {confidenceLabel} <span style={{ fontWeight: 400, fontSize: 12 }}>(±{uncertainty <= 1 ? `${Math.round(uncertainty * 60)}s` : `${uncertainty}m`})</span>
                   </div>
@@ -271,43 +281,44 @@
 
               {next ? (
                 <div style={{
-                  borderRadius: 14, padding: 24, marginBottom: 16, textAlign: "center",
-                  background: next.loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))" : "linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))",
-                  border: `1px solid ${next.loc === "North" ? "rgba(59,130,246,0.3)" : "rgba(249,115,22,0.3)"}`,
+                  borderRadius: 4, padding: 24, marginBottom: 16, textAlign: "center",
+                  background: next.loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))" : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
+                  border: `1px solid ${next.loc === "North" ? "rgba(59,130,246,0.25)" : "rgba(249,115,22,0.25)"}`,
+                  boxShadow: "inset 0 1px 0 rgba(191,163,76,0.06)",
                 }}>
-                  <div style={{ fontSize: 12, color: "#8b83a8", marginBottom: 4 }}>Next Pots FATE</div>
-                  <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 10, color: next.loc === "North" ? "#93c5fd" : "#fdba74" }}>
+                  <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
+                  <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 10, color: next.loc === "North" ? "#93c5fd" : "#fdba74", fontFamily: "'Cinzel', serif" }}>
                     {next.loc}
                   </div>
                   {next.status === "window" ? (
                     <div>
-                      <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{calibrated ? "⚡ Active now!" : "⚡ Could be active now!"}</div>
-                      <div style={{ fontSize: 12, color: "#8b83a8", marginTop: 4 }}>{calibrated ? "Confirmed spawn — watch for it!" : `Window open — up to ${fmtShort(Math.max(0, next.lateRemaining))} from now`}</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{calibrated ? "\u26a1 Active now!" : "\u26a1 Could be active now!"}</div>
+                      <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>{calibrated ? "Confirmed spawn \u2014 watch for it!" : `Window open \u2014 up to ${fmtShort(Math.max(0, next.lateRemaining))} from now`}</div>
                     </div>
                   ) : (
                     <div>
-                      <div style={{ fontSize: 13, color: "#8b83a8", marginBottom: 4 }}>Spawns in</div>
+                      <div style={{ fontSize: 13, color: "#a9a6a0", marginBottom: 4 }}>Spawns in</div>
                       <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6 }}>
                         <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.earlyRemaining))}</span>
-                        <span style={{ fontSize: 32, fontWeight: 700, color: "#e0e0e0" }}>{fmtShort(Math.max(0, next.remaining))}</span>
+                        <span style={{ fontSize: 32, fontWeight: 700, color: "#e8e4dc" }}>{fmtShort(Math.max(0, next.remaining))}</span>
                         <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.lateRemaining))}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "#8b83a8", marginTop: 4 }}>early — best guess — late</div>
-                      <div style={{ fontSize: 14, color: "#a5a0c0", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
-                      <div style={{ marginTop: 14, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", position: "relative", overflow: "hidden" }}>
+                      <div style={{ fontSize: 11, color: "#a9a6a0", marginTop: 4 }}>early — best guess — late</div>
+                      <div style={{ fontSize: 14, color: "#d4c078", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
+                      <div style={{ marginTop: 14, height: 5, borderRadius: 2, background: "rgba(191,163,76,0.1)", position: "relative", overflow: "hidden" }}>
                         {(() => {
                           const total = 30;
                           const center = Math.max(0, Math.min(next.remaining, total));
                           const early = Math.max(0, center - uncertainty);
                           const late = Math.min(total, center + uncertainty);
-                          return <div style={{ position: "absolute", left: `${(early / total) * 100}%`, width: `${((late - early) / total) * 100}%`, height: "100%", borderRadius: 3, background: `linear-gradient(90deg, ${confidenceColor}44, ${confidenceColor}aa, ${confidenceColor}44)` }} />;
+                          return <div style={{ position: "absolute", left: `${(early / total) * 100}%`, width: `${((late - early) / total) * 100}%`, height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${confidenceColor}44, ${confidenceColor}aa, ${confidenceColor}44)` }} />;
                         })()}
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div style={{ ...cardStyle, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", textAlign: "center", color: "#fca5a5", marginBottom: 16 }}>
+                <div style={{ ...cardStyle, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", textAlign: "center", color: "#fca5a5", marginBottom: 16 }}>
                   No more FATEs expected this instance.
                 </div>
               )}
@@ -317,39 +328,39 @@
                   ...cardStyle, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center",
                 }}>
                   <div>
-                    <div style={{ fontSize: 11, color: "#8b83a8" }}>After That</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: afterNext.loc === "North" ? "#93c5fd" : "#fdba74" }}>{afterNext.loc}</div>
+                    <div style={{ fontSize: 11, color: "#a9a6a0" }}>After That</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: afterNext.loc === "North" ? "#93c5fd" : "#fdba74", fontFamily: "'Cinzel', serif" }}>{afterNext.loc}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: "#e0e0e0" }}>{fmtShort(Math.max(0, afterNext.remaining))}</div>
-                    <div style={{ fontSize: 12, color: "#8b83a8" }}>~{fmtTime(afterNext.remaining)}</div>
+                    <div style={{ fontSize: 18, fontWeight: 600, color: "#e8e4dc" }}>{fmtShort(Math.max(0, afterNext.remaining))}</div>
+                    <div style={{ fontSize: 12, color: "#a9a6a0" }}>~{fmtTime(afterNext.remaining)}</div>
                   </div>
                 </div>
               )}
 
               <div style={{ ...cardStyle, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#a5a0c0", marginBottom: 6 }}>
-                  {calibrated ? "Re-Calibrate" : "Calibrate"} — FATE Just Defeated?
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#d4c078", marginBottom: 6 }}>
+                  {calibrated ? "Re-Calibrate" : "Calibrate"} — FATE Just Spawned?
                 </div>
-                <p style={{ fontSize: 12, color: "#7a7394", marginBottom: 14, lineHeight: 1.5 }}>
-                  When a FATE is defeated, tap the matching location button to sync the schedule.
+                <p style={{ fontSize: 12, color: "#6e6b65", marginBottom: 14, lineHeight: 1.5 }}>
+                  When a FATE spawns, tap the matching location button to sync the schedule.
                 </p>
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button onClick={() => handleCalibrate("North")} style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 20 }}>⬆</span>
-                    <span>North Defeated</span>
+                  <button onClick={() => handleCalibrate("North")} style={btnNorth}>
+                    <span style={{ fontSize: 18 }}>{"\u2726"}</span>
+                    <span>North Spawned</span>
                   </button>
-                  <button onClick={() => handleCalibrate("South")} style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #c2410c, #f97316)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 20 }}>⬇</span>
-                    <span>South Defeated</span>
+                  <button onClick={() => handleCalibrate("South")} style={btnSouth}>
+                    <span style={{ fontSize: 18 }}>{"\u2726"}</span>
+                    <span>South Spawned</span>
                   </button>
                 </div>
                 {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
               </div>
 
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={handleShare} style={{ ...btnPrimary, flex: 1, background: "linear-gradient(135deg, #065f46, #10b981)" }}>Share Link</button>
-                <button onClick={handleReset} style={{ ...btnPrimary, flex: 1, background: "rgba(255,255,255,0.06)", color: "#8b83a8" }}>Reset</button>
+                <button onClick={handleShare} style={{ ...btnPrimary, flex: 1, background: "linear-gradient(135deg, #8c7635, #bfa34c)", border: "1px solid rgba(191,163,76,0.4)" }}>Share Link</button>
+                <button onClick={handleReset} style={{ ...btnPrimary, flex: 1, background: "rgba(16,33,62,0.6)", color: "#a9a6a0", border: "1px solid rgba(191,163,76,0.15)" }}>Reset</button>
               </div>
             </>
           )}
