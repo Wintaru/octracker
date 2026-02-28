@@ -90,6 +90,8 @@
       const [tracking, setTracking] = useState(false);
       const [now, setNow] = useState(Date.now());
       const [statusMsg, setStatusMsg] = useState("");
+      const [calibratedAt, setCalibratedAt] = useState(null);
+      const [calibratedLoc, setCalibratedLoc] = useState(null);
 
       useEffect(() => {
         const hash = window.location.hash.slice(1);
@@ -173,6 +175,8 @@
         const newOffset = instTime - FATE_TIMES[bestIdx];
         setDefeatedIdx(bestIdx);
         setOffset(newOffset);
+        setCalibratedAt(Date.now());
+        setCalibratedLoc(location);
         const newCount = calibCount + 1;
         setCalibCount(newCount);
 
@@ -190,7 +194,7 @@
         setTracking(false);
         setPlayerMin("");
         setOffset(0); setUncertainty(TOLERANCE);
-        setCalibrated(false); setCalibCount(0); setDefeatedIdx(null);
+        setCalibrated(false); setCalibCount(0); setDefeatedIdx(null); setCalibratedAt(null); setCalibratedLoc(null);
         setStartRealTime(null); setStartInstanceTime(null);
         setStatusMsg("");
       }
@@ -209,6 +213,7 @@
       const schedule = getSchedule();
       const next = nextFate();
       const afterNext = schedule.filter(f => (f.status === "upcoming" || f.status === "window") && f !== next)[0] || null;
+      const showConfirmation = calibratedAt && (now - calibratedAt < 10000);
 
       useEffect(() => {
         if (next && tracking) {
@@ -279,7 +284,23 @@
                 </div>
               </div>
 
-              {next ? (
+              {showConfirmation && calibratedLoc ? (
+                <div style={{
+                  borderRadius: 4, padding: 24, marginBottom: 16, textAlign: "center",
+                  background: calibratedLoc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))" : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
+                  border: `1px solid ${calibratedLoc === "North" ? "rgba(59,130,246,0.25)" : "rgba(249,115,22,0.25)"}`,
+                  boxShadow: "inset 0 1px 0 rgba(191,163,76,0.06)",
+                }}>
+                  <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>{calibratedLoc} Pots FATE</div>
+                  <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 10, color: calibratedLoc === "North" ? "#93c5fd" : "#fdba74", fontFamily: "'Cinzel', serif" }}>
+                    {calibratedLoc}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#34d399" }}>{"\u2714"} Spawn confirmed</div>
+                    <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Schedule synced — tracking next spawn</div>
+                  </div>
+                </div>
+              ) : next ? (
                 <div style={{
                   borderRadius: 4, padding: 24, marginBottom: 16, textAlign: "center",
                   background: next.loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))" : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
@@ -292,8 +313,8 @@
                   </div>
                   {next.status === "window" ? (
                     <div>
-                      <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{calibrated ? "\u26a1 Active now!" : "\u26a1 Could be active now!"}</div>
-                      <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>{calibrated ? "Confirmed spawn \u2014 watch for it!" : `Window open \u2014 up to ${fmtShort(Math.max(0, next.lateRemaining))} from now`}</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{calibrated ? "\u26a1 Spawning!" : "\u26a1 Spawn window open"}</div>
+                      <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>{calibrated ? `Head to ${next.loc}!` : `Estimated window \u2014 up to ${fmtShort(Math.max(0, next.lateRemaining))} from now`}</div>
                     </div>
                   ) : (
                     <div>
