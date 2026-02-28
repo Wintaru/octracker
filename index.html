@@ -268,10 +268,9 @@
                   background: next.loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))" : "linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))",
                   border: `1px solid ${next.loc === "North" ? "rgba(59,130,246,0.3)" : "rgba(249,115,22,0.3)"}`,
                 }}>
-                  <div style={{ fontSize: 12, color: "#8b83a8", marginBottom: 8 }}>Next Pots FATE</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: next.loc === "North" ? "#93c5fd" : "#fdba74", display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}>
-                    <span style={{ padding: "4px 14px", borderRadius: 8, fontSize: 14, fontWeight: 700, background: next.loc === "North" ? "rgba(59,130,246,0.3)" : "rgba(249,115,22,0.3)", border: `1px solid ${next.loc === "North" ? "rgba(59,130,246,0.5)" : "rgba(249,115,22,0.5)"}` }}>{next.loc}</span>
-                    #{next.num}
+                  <div style={{ fontSize: 12, color: "#8b83a8", marginBottom: 4 }}>Next Pots FATE</div>
+                  <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 10, color: next.loc === "North" ? "#93c5fd" : "#fdba74" }}>
+                    {next.loc}
                   </div>
                   {next.status === "window" ? (
                     <div>
