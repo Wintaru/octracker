@@ -333,7 +333,7 @@
 
       useEffect(() => {
         if (next && tracking) {
-          const mins = Math.max(0, Math.ceil(next.remaining));
+          const mins = Math.max(0, Math.floor(next.remaining));
           document.title = `${mins}m - ${next.loc} Pots`;
         } else {
           document.title = "OC South - Pots FATE Tracker";
