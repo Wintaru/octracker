@@ -355,6 +355,17 @@
             <div role="separator" style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(191,163,76,0.5), transparent)", marginBottom: 20 }} />
           </header>
 
+          <details style={{ marginBottom: 16, fontSize: 12, color: "#6e6b65", lineHeight: 1.6 }}>
+            <summary style={{ cursor: "pointer", color: "#a9a6a0", fontSize: 13, fontWeight: 600 }}>How it works</summary>
+            <div style={{ ...cardStyle, marginTop: 8 }}>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Getting started:</strong> Enter your best guess for how many minutes until the next Pots FATE, then tap North or South to pick the location. The tracker will start a countdown with a {"\u00b1"}5 minute confidence window.</p>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Calibrating:</strong> When a FATE actually spawns, tap the matching North/South button on the calibration card. This snaps the schedule to the real spawn time {"\u2014"} first calibration tightens to {"\u00b1"}1 min, a second gets you to {"\u00b1"}30 sec.</p>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Sharing:</strong> Copy the tracker code or link to share with your party. They can paste the code in the join box or open the link to see the same countdown. Note: if you calibrate, the code updates {"\u2014"} share the new one for best accuracy.</p>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Tab timer:</strong> While tracking, the browser tab title shows the minutes remaining, so you can see the countdown even while tabbed into the game.</p>
+              <p><strong style={{ color: "#d4c078" }}>Add to home screen:</strong> On mobile, use your browser{"\u2019"}s "Add to Home Screen" option to install this as an app. It will open full-screen without the browser toolbar.</p>
+            </div>
+          </details>
+
           <main>
           {!tracking ? (
             <section style={cardStyle} aria-label="Setup">
