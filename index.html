@@ -309,7 +309,7 @@
       const upcoming = schedule.filter(f => f.status === "upcoming" || f.status === "window");
       const next = upcoming[0] || null;
       const afterNext = upcoming[1] || null;
-      const showConfirmation = calibratedAt && (now - calibratedAt < 10000);
+      const showConfirmation = calibratedAt && (now - calibratedAt < 30000);
 
       useEffect(() => {
         if (!tracking || !next) return;
@@ -403,18 +403,19 @@
           ) : (
             <>
               <section aria-label="FATE countdown" aria-live="polite">
-              {showConfirmation && calibratedLoc ? (
-                <div style={locCardStyle(calibratedLoc)}>
-                  <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>{calibratedLoc} Pots FATE</div>
-                  <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 10, color: locColor(calibratedLoc), fontFamily: "'Cinzel', serif" }}>
-                    {calibratedLoc}
+              {showConfirmation && calibratedLoc && (
+                <div style={{ ...cardStyle, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", borderColor: "rgba(52,211,153,0.3)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc) }}>{calibratedLoc} Pots FATE</div>
+                      <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: "#34d399" }}>{"\u2714"} Spawn confirmed</div>
-                    <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Schedule synced {"\u2014"} tracking next spawn</div>
-                  </div>
+                  <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
                 </div>
-              ) : next && (
+              )}
+              {next && (
                 <div style={locCardStyle(next.loc)}>
                   <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
                   <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
