@@ -477,8 +477,10 @@
                 {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
               </section>
 
-              <div style={{ ...cardStyle, marginBottom: 16, textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "#6e6b65", marginBottom: 4 }}>Tracker Code</div>
+              <div style={{ ...cardStyle, marginBottom: 16, textAlign: "center", transition: "border-color 0.3s", borderColor: showConfirmation ? "rgba(52,211,153,0.5)" : "rgba(191,163,76,0.25)" }}>
+                <div style={{ fontSize: 11, color: "#6e6b65", marginBottom: 4 }}>
+                  Tracker Code {showConfirmation && <span style={{ color: "#34d399" }}>{"\u2014"} updated</span>}
+                </div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: "#d4c078", fontFamily: "monospace", letterSpacing: 0.5 }}>
                   {encodeShareState(startRealTime, startInstanceTime, offset, uncertainty)}
                 </div>
