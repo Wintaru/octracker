@@ -67,7 +67,7 @@
     const FATE_INTERVAL = 30;
     function fateTime(n) { return FATE_START + FATE_INTERVAL * n; }
     function fateLoc(n) { return n % 2 === 0 ? "North" : "South"; }
-    const TOLERANCE = 5;
+    const TOLERANCE = 1;
     const SHARE_EPOCH = 1735689600000; // Jan 1 2025 UTC
     const WORD_CYCLE = 16384; // ~11.4 day cycle for modular time encoding
     const WORDS = [
@@ -242,7 +242,7 @@
         setCalibCount(0);
         setDefeatedIdx(null);
         notifiedRef.current = null;
-        setStatusMsg(`Tracking from ${location} estimate (\u00b15 min window)`);
+        setStatusMsg(`Tracking from ${location} estimate (\u00b11 min window)`);
       }
 
       function handleCalibrate(location) {
@@ -358,7 +358,7 @@
           <details style={{ marginBottom: 16, fontSize: 12, color: "#6e6b65", lineHeight: 1.6 }}>
             <summary style={{ cursor: "pointer", color: "#a9a6a0", fontSize: 13, fontWeight: 600 }}>How it works</summary>
             <div style={{ ...cardStyle, marginTop: 8 }}>
-              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Getting started:</strong> Enter your best guess for how many minutes until the next Pots FATE, then tap North or South to pick the location. The tracker will start a countdown with a {"\u00b1"}5 minute confidence window.</p>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Getting started:</strong> Enter your best guess for how many minutes until the next Pots FATE, then tap North or South to pick the location. The tracker will start a countdown with a {"\u00b1"}1 minute confidence window.</p>
               <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Calibrating:</strong> When a FATE actually spawns, tap the matching North/South button on the calibration card. This snaps the schedule to the real spawn time {"\u2014"} first calibration tightens to {"\u00b1"}1 min, a second gets you to {"\u00b1"}30 sec.</p>
               <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Sharing:</strong> Copy the tracker code or link to share with your party. They can paste the code in the join box or open the link to see the same countdown. Note: if you calibrate, the code updates {"\u2014"} share the new one for best accuracy.</p>
               <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Tab timer:</strong> While tracking, the browser tab title shows the minutes remaining, so you can see the countdown even while tabbed into the game.</p>
@@ -379,7 +379,7 @@
                 </div>
               </div>
               <p style={{ fontSize: 11, color: "#6e6b65", marginBottom: 16, lineHeight: 1.5 }}>
-                Enter your best guess, then tap which location it will be. Predictions start {"\u00b1"}5 min {"\u2014"} calibrate when a FATE spawns to tighten it.
+                Enter your best guess, then tap which location it will be. Predictions start {"\u00b1"}1 min {"\u2014"} calibrate when a FATE spawns to tighten it.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => handleStart("North")} style={btnNorth}>
