@@ -33,7 +33,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
   <script type="text/babel">
-    const { useState, useEffect, useCallback, useRef } = React;
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
     // Synthesized alert chime — no external audio files needed
     function playAlertSound() {
@@ -143,6 +143,19 @@
       return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     }
 
+    const cardStyle = { background: "rgba(16,33,62,0.6)", borderRadius: 4, padding: 16, border: "1px solid rgba(191,163,76,0.25)", boxShadow: "inset 0 1px 0 rgba(191,163,76,0.08)" };
+    const inputStyle = { width: 64, padding: "10px 8px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.3)", background: "rgba(16,33,62,0.8)", color: "#e8e4dc", fontSize: 18, textAlign: "center", outline: "none" };
+    const btnBase = { width: "100%", padding: "12px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.2)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" };
+    const btnNorth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #5b7cd8", background: "linear-gradient(180deg, rgba(30,50,90,0.95), rgba(18,30,60,0.95))", color: "#93c5fd", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(91,124,216,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
+    const btnSouth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #d4a040", background: "linear-gradient(180deg, rgba(65,38,18,0.95), rgba(45,25,12,0.95))", color: "#fdba74", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(212,160,64,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
+    const locCardStyle = (loc) => ({
+      borderRadius: 4, padding: 24, marginBottom: 16, textAlign: "center",
+      background: loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))" : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
+      border: `1px solid ${loc === "North" ? "rgba(59,130,246,0.25)" : "rgba(249,115,22,0.25)"}`,
+      boxShadow: "inset 0 1px 0 rgba(191,163,76,0.06)",
+    });
+    const locColor = (loc) => loc === "North" ? "#93c5fd" : "#fdba74";
+
     function FateTracker() {
       const [playerMin, setPlayerMin] = useState("");
       const [joinCode, setJoinCode] = useState("");
@@ -190,13 +203,13 @@
         return () => clearInterval(interval);
       }, []);
 
-      const currentInstanceTime = useCallback(() => {
+      const currentInstanceTime = useMemo(() => {
         if (!tracking || !startRealTime) return 0;
         return startInstanceTime + (now - startRealTime) / 60000;
       }, [tracking, startRealTime, startInstanceTime, now]);
 
       const getSchedule = useCallback(() => {
-        const instTime = currentInstanceTime();
+        const instTime = currentInstanceTime;
         const startN = Math.max(0, Math.floor((instTime - offset - FATE_START) / FATE_INTERVAL) - 1);
         const fates = [];
         for (let n = startN; fates.length < 6; n++) {
@@ -217,7 +230,7 @@
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
         }
-        const mins = parseInt(playerMin) || 0;
+        const mins = parseInt(playerMin, 10) || 0;
         const firstTime = location === "North" ? 5 : 35;
         let instanceTime = firstTime - mins;
         while (instanceTime < 0) instanceTime += 60;
@@ -233,7 +246,7 @@
       }
 
       function handleCalibrate(location) {
-        const instTime = currentInstanceTime();
+        const instTime = currentInstanceTime;
         // North FATEs at n=0,2,4,... (times 5,65,125,...) spaced 60min
         // South FATEs at n=1,3,5,... (times 35,95,155,...) spaced 60min
         const baseTime = location === "North" ? 5 : 35;
@@ -330,38 +343,27 @@
       const confidenceColor = uncertainty <= 0.5 ? "#34d399" : uncertainty <= 1 ? "#6ee7b7" : uncertainty <= 3 ? "#fcd34d" : "#fdba74";
       const confidenceLabel = uncertainty <= 0.5 ? "High" : uncertainty <= 1 ? "Good" : uncertainty <= 3 ? "Fair" : "Estimate";
 
-      const cardStyle = { background: "rgba(16,33,62,0.6)", borderRadius: 4, padding: 16, border: "1px solid rgba(191,163,76,0.25)", boxShadow: "inset 0 1px 0 rgba(191,163,76,0.08)" };
-      const inputStyle = { width: 64, padding: "10px 8px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.3)", background: "rgba(16,33,62,0.8)", color: "#e8e4dc", fontSize: 18, textAlign: "center", outline: "none" };
-      const btnBase = { width: "100%", padding: "12px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.2)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" };
-      const btnNorth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #5b7cd8", background: "linear-gradient(180deg, rgba(30,50,90,0.95), rgba(18,30,60,0.95))", color: "#93c5fd", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(91,124,216,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
-      const btnSouth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #d4a040", background: "linear-gradient(180deg, rgba(65,38,18,0.95), rgba(45,25,12,0.95))", color: "#fdba74", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(212,160,64,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
-
-      const locCardStyle = (loc) => ({
-        borderRadius: 4, padding: 24, marginBottom: 16, textAlign: "center",
-        background: loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))" : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
-        border: `1px solid ${loc === "North" ? "rgba(59,130,246,0.25)" : "rgba(249,115,22,0.25)"}`,
-        boxShadow: "inset 0 1px 0 rgba(191,163,76,0.06)",
-      });
-      const locColor = (loc) => loc === "North" ? "#93c5fd" : "#fdba74";
-
       return (
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, textAlign: "center", marginBottom: 2, fontFamily: "'Cinzel', serif", background: "linear-gradient(180deg, #d4c078, #bfa34c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Occult Crescent South
-          </h1>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#a9a6a0", marginBottom: 12, fontFamily: "'Cinzel', serif", letterSpacing: 1 }}>
-            Pots FATE Tracker
-          </p>
-          <div style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(191,163,76,0.5), transparent)", marginBottom: 20 }} />
+          <header>
+            <h1 style={{ fontSize: 24, fontWeight: 700, textAlign: "center", marginBottom: 2, fontFamily: "'Cinzel', serif", background: "linear-gradient(180deg, #d4c078, #bfa34c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Occult Crescent South
+            </h1>
+            <p style={{ textAlign: "center", fontSize: 13, color: "#a9a6a0", marginBottom: 12, fontFamily: "'Cinzel', serif", letterSpacing: 1 }}>
+              Pots FATE Tracker
+            </p>
+            <div role="separator" style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(191,163,76,0.5), transparent)", marginBottom: 20 }} />
+          </header>
 
+          <main>
           {!tracking ? (
-            <div style={cardStyle}>
-              <label style={{ fontSize: 14, color: "#a9a6a0", marginBottom: 12, display: "block" }}>
+            <section style={cardStyle} aria-label="Setup">
+              <label htmlFor="playerMin" style={{ fontSize: 14, color: "#a9a6a0", marginBottom: 12, display: "block" }}>
                 Estimated minutes until next Pots FATE:
               </label>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <input type="number" min="0" max="60" placeholder="0" value={playerMin} onChange={(e) => setPlayerMin(e.target.value)} style={{ ...inputStyle, width: 100 }} />
+                  <input id="playerMin" type="number" min="0" max="60" placeholder="0" value={playerMin} onChange={(e) => setPlayerMin(e.target.value)} style={{ ...inputStyle, width: 100 }} />
                   <span style={{ fontSize: 11, color: "#6e6b65", marginTop: 4 }}>minutes</span>
                 </div>
               </div>
@@ -381,14 +383,15 @@
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(191,163,76,0.15)" }}>
                 <div style={{ fontSize: 12, color: "#6e6b65", marginBottom: 8 }}>Or join an existing tracker:</div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input type="text" placeholder="flame-frost-stone-wind" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleJoin()} style={{ ...inputStyle, flex: 1, width: "auto", fontSize: 14, textAlign: "left", padding: "8px 10px" }} />
+                  <input type="text" placeholder="flame-frost-stone-wind" aria-label="Tracker code" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleJoin()} style={{ ...inputStyle, flex: 1, width: "auto", fontSize: 14, textAlign: "left", padding: "8px 10px" }} />
                   <button onClick={handleJoin} style={{ ...btnBase, width: "auto", padding: "8px 16px", background: "rgba(16,33,62,0.6)", color: "#d4c078", border: "1px solid rgba(191,163,76,0.3)", fontSize: 13 }}>Join</button>
                 </div>
                 {statusMsg && !tracking && <p style={{ fontSize: 11, color: "#fdba74", marginTop: 8 }}>{statusMsg}</p>}
               </div>
-            </div>
+            </section>
           ) : (
             <>
+              <section aria-label="FATE countdown" aria-live="polite">
               {showConfirmation && calibratedLoc ? (
                 <div style={locCardStyle(calibratedLoc)}>
                   <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>{calibratedLoc} Pots FATE</div>
@@ -452,8 +455,9 @@
                   </div>
                 </div>
               )}
+              </section>
 
-              <div style={{ ...cardStyle, marginBottom: 16 }}>
+              <section aria-label="Calibration" style={{ ...cardStyle, marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#d4c078", marginBottom: 6 }}>
                   {calibCount > 0 ? "Re-Calibrate" : "Calibrate"} {"\u2014"} FATE Just Spawned?
                 </div>
@@ -471,7 +475,7 @@
                   </button>
                 </div>
                 {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
-              </div>
+              </section>
 
               <div style={{ ...cardStyle, marginBottom: 16, textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: "#6e6b65", marginBottom: 4 }}>Tracker Code</div>
@@ -492,6 +496,7 @@
               </div>
             </>
           )}
+          </main>
         </div>
       );
     }
