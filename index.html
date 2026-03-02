@@ -29,47 +29,66 @@
 </head>
 <body>
   <div id="root"></div>
+  <!-- React + Babel loaded from CDN — no build step needed -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
   <script type="text/babel">
     const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
-    // Synthesized alert chime — no external audio files needed
-    function playAlertSound() {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 arpeggio
-        notes.forEach((freq, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "sine";
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.4);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + i * 0.15);
-          osc.stop(ctx.currentTime + i * 0.15 + 0.4);
-        });
-        setTimeout(() => ctx.close(), 1000);
-      } catch (e) {}
-    }
 
-    function sendNotification(title, body) {
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(title, { body });
-      }
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // GAME MECHANICS
+    // ═══════════════════════════════════════════════════════════════
+    //
+    // The Pots FATE schedule in Occult Crescent South is fixed:
+    //   - First spawn: 5 minutes after the instance opens, at North
+    //   - Every 30 minutes after that, alternating North / South
+    //   - Full sequence: North@5m, South@35m, North@65m, South@95m, ...
+    //
+    // Each FATE is identified by an index "n" (0, 1, 2, ...).
+    //   n=0 → North@5m, n=1 → South@35m, n=2 → North@65m, etc.
+    //   Even n = North, odd n = South.
+    //
+    // "offset" is a correction value in minutes. It starts at 0 and is
+    // adjusted when the user calibrates to a real observed spawn. A positive
+    // offset means FATEs are spawning later than the initial prediction.
 
-    // FATE n spawns at time 5 + 30*n; even n = North, odd n = South
-    const FATE_START = 5;
-    const FATE_INTERVAL = 30;
+    const FATE_START    = 5;   // minutes into the instance when the first FATE spawns
+    const FATE_INTERVAL = 30;  // minutes between consecutive FATE spawns
+
+    // Predicted spawn time (in instance-minutes) for FATE index n
     function fateTime(n) { return FATE_START + FATE_INTERVAL * n; }
-    function fateLoc(n) { return n % 2 === 0 ? "North" : "South"; }
-    const TOLERANCE = 1;
-    const SHARE_EPOCH = 1735689600000; // Jan 1 2025 UTC
-    const WORD_CYCLE = 16384; // ~11.4 day cycle for modular time encoding
+
+    // Location for FATE index n: even = North, odd = South
+    function fateLoc(n)  { return n % 2 === 0 ? "North" : "South"; }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // SHARE LINK ENCODING
+    // ═══════════════════════════════════════════════════════════════
+    //
+    // A tracker state is encoded as 4 FFXIV-themed words joined by hyphens
+    // (e.g. "flame-frost-stone-wind"). The code goes in the URL hash or can
+    // be shared manually. Party members paste it into the join box to load
+    // the same countdown.
+    //
+    // The 4 words represent a 32-bit integer, each word = one byte (8 bits):
+    //   bits 31-18 (14 bits) → "t": wall-clock start time in minutes, mod WORD_CYCLE
+    //   bits 17-10  (8 bits) → "i": instance age in whole minutes when tracking began
+    //   bits  9- 2  (8 bits) → "o": schedule offset (encoded as round(offset*4) + 128)
+    //   bits  1- 0  (2 bits) → unused, zeroed (kept for format compatibility)
+    //
+    // "t" is stored modulo 16384 rather than as a full timestamp, which keeps
+    // the code short and avoids leaking date information. On decode, we find
+    // the most recent past minute that matches t mod WORD_CYCLE. WORD_CYCLE ≈
+    // 11.4 days, which is far longer than any realistic tracker session.
+
+    const SHARE_EPOCH = 1735689600000; // Jan 1 2025 UTC — the t=0 reference point
+    const WORD_CYCLE  = 16384;         // 2^14 minutes ≈ 11.4 days
+
+    // 256 thematic words — one per possible byte value (0-255).
+    // Words are grouped loosely by theme; position determines the encoded value.
     const WORDS = [
       "flame","frost","stone","wind","thunder","water","shadow","light","ember","blaze","gale","quake","tide","spark","void","bloom",
       "dawn","dusk","moon","solar","lunar","astral","umbral","star","nova","comet","eclipse","zenith","corona","aurora","cosmos","nebula",
@@ -89,90 +108,198 @@
       "serpent","phoenix","griffin","chimera","sphinx","hydra","titan","golem","djinn","sprite","nymph","sylph","angel","demon","giant","shade"
     ];
 
-    // Packs 4 values into 32 bits, encoded as 4 words (8 bits each)
-    // t: 14 bits (minutes since epoch mod 16384, ~11 day cycle)
-    // i: 8 bits (instance time in minutes, 0-255)
-    // o: 8 bits (offset: round(offset*4)+128, ±32 min at 0.25 precision)
-    // u: 2 bits (uncertainty level)
-    function encodeShareState(startRealTime, startInstanceTime, offset, uncertainty) {
-      const t = Math.floor((startRealTime - SHARE_EPOCH) / 60000) & 0x3FFF;
-      const i = Math.min(255, Math.max(0, Math.round(startInstanceTime)));
-      const o = Math.min(255, Math.max(0, Math.round(offset * 4) + 128));
-      const u = uncertainty >= 5 ? 0 : uncertainty >= 3 ? 3 : uncertainty >= 1 ? 1 : 2;
-      const v = (t << 18) | (i << 10) | (o << 2) | u;
+    // Pack tracker state into a 4-word code string
+    function encodeShareState(startRealTime, startInstanceTime, offset) {
+      const t = Math.floor((startRealTime - SHARE_EPOCH) / 60000) & 0x3FFF; // 14-bit modular minute count
+      const i = Math.min(255, Math.max(0, Math.round(startInstanceTime)));   // instance age, clamped 0-255
+      const o = Math.min(255, Math.max(0, Math.round(offset * 4) + 128));   // offset encoded around midpoint 128
+      const v = (t << 18) | (i << 10) | (o << 2);                          // pack into 32 bits
       return [WORDS[(v >>> 24) & 0xFF], WORDS[(v >>> 16) & 0xFF], WORDS[(v >>> 8) & 0xFF], WORDS[v & 0xFF]].join("-");
     }
 
+    // Unpack a 4-word code (or legacy base36 code) back into tracker state
     function decodeShareState(code) {
       if (!code) return null;
-      // Legacy 9-char base36 format
+
+      // Legacy 9-character base36 format (kept for backward compatibility with old links)
       if (code.length === 9 && !code.includes("-")) {
         const t = parseInt(code.slice(0, 4), 36);
         const i = parseInt(code.slice(4, 6), 36);
         const o = parseInt(code.slice(6, 8), 36);
-        const u = parseInt(code.slice(8, 9), 36);
-        if ([t, i, o, u].some(isNaN)) return null;
-        return { startRealTime: t * 60000 + SHARE_EPOCH, startInstanceTime: i, offset: (o - 300) / 10, uncertainty: u === 0 ? 5 : u === 3 ? 3 : u === 1 ? 1 : 0.5 };
+        if ([t, i, o].some(isNaN)) return null;
+        return { startRealTime: t * 60000 + SHARE_EPOCH, startInstanceTime: i, offset: (o - 300) / 10 };
       }
-      // Word-based format
+
+      // Current word-based format
       const parts = code.split("-");
       if (parts.length !== 4) return null;
       const idx = parts.map(w => WORDS.indexOf(w.toLowerCase()));
       if (idx.some(j => j === -1)) return null;
-      const v = (idx[0] << 24) | (idx[1] << 16) | (idx[2] << 8) | idx[3];
+
+      const v    = (idx[0] << 24) | (idx[1] << 16) | (idx[2] << 8) | idx[3];
       const tMod = (v >>> 18) & 0x3FFF;
-      const i = (v >>> 10) & 0xFF;
-      const oEnc = (v >>> 2) & 0xFF;
-      const u = v & 0x3;
+      const i    = (v >>> 10) & 0xFF;
+      const oEnc = (v >>> 2)  & 0xFF;
+
+      // Reconstruct the absolute minute from the modular value by finding the
+      // most recent past minute that matches tMod within the 11.4-day cycle
       const nowMins = Math.floor((Date.now() - SHARE_EPOCH) / 60000);
-      const diff = ((nowMins - tMod) % WORD_CYCLE + WORD_CYCLE) % WORD_CYCLE;
-      const t = nowMins - diff;
-      return { startRealTime: t * 60000 + SHARE_EPOCH, startInstanceTime: i, offset: (oEnc - 128) / 4, uncertainty: u === 0 ? 5 : u === 3 ? 3 : u === 1 ? 1 : 0.5 };
+      const diff    = ((nowMins - tMod) % WORD_CYCLE + WORD_CYCLE) % WORD_CYCLE;
+      const t       = nowMins - diff;
+
+      return { startRealTime: t * 60000 + SHARE_EPOCH, startInstanceTime: i, offset: (oEnc - 128) / 4 };
     }
 
+
+    // ═══════════════════════════════════════════════════════════════
+    // AUDIO + NOTIFICATIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    // Plays a C-E-G arpeggio chime using the Web Audio API.
+    // A fresh AudioContext is created each time and closed after playback to
+    // avoid accumulating open audio contexts across multiple alerts.
+    function playAlertSound() {
+      try {
+        const ctx   = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((freq, i) => {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type           = "sine";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + i * 0.15);
+          osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+        });
+        setTimeout(() => ctx.close(), 1000); // clean up after playback finishes
+      } catch (e) {}
+    }
+
+    // Fires a system notification if the user has granted permission.
+    // The "Notification" in window guard handles browsers that don't support it.
+    function sendNotification(title, body) {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body });
+      }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // FORMATTING UTILITIES
+    // ═══════════════════════════════════════════════════════════════
+
+    // Format a duration in minutes as "M:SS" (e.g. 4.75 → "4:45").
+    // Converts to total seconds first to avoid floating-point :60 rounding bugs.
     function fmtShort(mins) {
-      if (mins < 0) return "\u2014";
+      if (mins < 0) return "\u2014"; // em dash for negative/invalid values
       const totalSec = Math.round(mins * 60);
       const m = Math.floor(totalSec / 60);
       const s = totalSec % 60;
       return `${m}:${s.toString().padStart(2, "0")}`;
     }
 
+    // Format a duration in minutes as a wall-clock arrival time (e.g. "3:47 PM")
     function fmtTime(mins) {
       const d = new Date(Date.now() + mins * 60000);
       return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     }
 
-    const cardStyle = { background: "rgba(16,33,62,0.6)", borderRadius: 4, padding: 16, border: "1px solid rgba(191,163,76,0.25)", boxShadow: "inset 0 1px 0 rgba(191,163,76,0.08)" };
-    const inputStyle = { width: 64, padding: "10px 8px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.3)", background: "rgba(16,33,62,0.8)", color: "#e8e4dc", fontSize: 18, textAlign: "center", outline: "none" };
-    const btnBase = { width: "100%", padding: "12px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.2)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" };
-    const btnNorth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #5b7cd8", background: "linear-gradient(180deg, rgba(30,50,90,0.95), rgba(18,30,60,0.95))", color: "#93c5fd", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(91,124,216,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
-    const btnSouth = { flex: 1, padding: "16px 16px", borderRadius: 4, border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #d4a040", background: "linear-gradient(180deg, rgba(65,38,18,0.95), rgba(45,25,12,0.95))", color: "#fdba74", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "inset 0 1px 0 rgba(212,160,64,0.15), 0 2px 4px rgba(0,0,0,0.3)", fontFamily: "'Cinzel', serif", letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 };
+
+    // ═══════════════════════════════════════════════════════════════
+    // STYLES
+    // Defined outside the component so they aren't recreated on every
+    // render tick (which happens every second via the clock interval).
+    // ═══════════════════════════════════════════════════════════════
+
+    const cardStyle = {
+      background: "rgba(16,33,62,0.6)", borderRadius: 4, padding: 16,
+      border: "1px solid rgba(191,163,76,0.25)", boxShadow: "inset 0 1px 0 rgba(191,163,76,0.08)"
+    };
+    const inputStyle = {
+      width: 64, padding: "10px 8px", borderRadius: 4,
+      border: "1px solid rgba(191,163,76,0.3)", background: "rgba(16,33,62,0.8)",
+      color: "#e8e4dc", fontSize: 18, textAlign: "center", outline: "none"
+    };
+    const btnBase = {
+      width: "100%", padding: "12px 16px", borderRadius: 4,
+      border: "1px solid rgba(191,163,76,0.2)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer"
+    };
+    // North button: blue-themed
+    const btnNorth = {
+      flex: 1, padding: "16px 16px", borderRadius: 4,
+      border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #5b7cd8",
+      background: "linear-gradient(180deg, rgba(30,50,90,0.95), rgba(18,30,60,0.95))",
+      color: "#93c5fd", fontSize: 15, fontWeight: 700, cursor: "pointer",
+      boxShadow: "inset 0 1px 0 rgba(91,124,216,0.15), 0 2px 4px rgba(0,0,0,0.3)",
+      fontFamily: "'Cinzel', serif", letterSpacing: 1,
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 4
+    };
+    // South button: orange-themed
+    const btnSouth = {
+      flex: 1, padding: "16px 16px", borderRadius: 4,
+      border: "1px solid rgba(191,163,76,0.35)", borderTop: "2px solid #d4a040",
+      background: "linear-gradient(180deg, rgba(65,38,18,0.95), rgba(45,25,12,0.95))",
+      color: "#fdba74", fontSize: 15, fontWeight: 700, cursor: "pointer",
+      boxShadow: "inset 0 1px 0 rgba(212,160,64,0.15), 0 2px 4px rgba(0,0,0,0.3)",
+      fontFamily: "'Cinzel', serif", letterSpacing: 1,
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 4
+    };
+    // Card background color varies by FATE location
     const locCardStyle = (loc) => ({
       borderRadius: 4, padding: 24, marginBottom: 16, textAlign: "center",
-      background: loc === "North" ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))" : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
+      background: loc === "North"
+        ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))"
+        : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))",
       border: `1px solid ${loc === "North" ? "rgba(59,130,246,0.25)" : "rgba(249,115,22,0.25)"}`,
       boxShadow: "inset 0 1px 0 rgba(191,163,76,0.06)",
     });
+    // Text color for a given location
     const locColor = (loc) => loc === "North" ? "#93c5fd" : "#fdba74";
 
+
+    // ═══════════════════════════════════════════════════════════════
+    // COMPONENT: FateTracker
+    // ═══════════════════════════════════════════════════════════════
+
     function FateTracker() {
-      const [playerMin, setPlayerMin] = useState("");
-      const [joinCode, setJoinCode] = useState("");
-      const [offset, setOffset] = useState(0);
-      const [uncertainty, setUncertainty] = useState(TOLERANCE);
-      const [calibCount, setCalibCount] = useState(0);
-      const [defeatedIdx, setDefeatedIdx] = useState(null);
-      const [startRealTime, setStartRealTime] = useState(null);
+
+      // ── State ────────────────────────────────────────────────────
+      // playerMin      : raw text from the minutes input on the setup screen
+      // joinCode       : text from the "join existing tracker" input
+      // offset         : schedule correction in minutes (0 = trust initial estimate,
+      //                  non-zero = adjusted by calibration to match a real observed spawn)
+      // defeatedIdx    : the FATE index (n) that most recently spawned. We skip it in
+      //                  "upcoming" so the same FATE doesn't show as active after it passes.
+      // startRealTime  : Date.now() when tracking began (used to compute elapsed real time)
+      // startInstanceTime : how many minutes into the instance we were when tracking began
+      // tracking       : whether the live countdown is running
+      // now            : current timestamp in ms, updated every second — drives all countdowns
+      // statusMsg      : small feedback text shown below the calibration buttons
+      // calibratedAt   : timestamp of the most recent calibration (drives the 30s "Active now" banner)
+      // calibratedLoc  : which location was calibrated (North/South), shown in the banner
+      // soundEnabled   : whether to play the chime when a FATE enters spawn window
+      // notifiedRef    : tracks which FATE index we last alerted, so we don't re-fire on re-renders
+      const [playerMin,         setPlayerMin]         = useState("");
+      const [joinCode,          setJoinCode]          = useState("");
+      const [offset,            setOffset]            = useState(0);
+      const [defeatedIdx,       setDefeatedIdx]       = useState(null);
+      const [startRealTime,     setStartRealTime]     = useState(null);
       const [startInstanceTime, setStartInstanceTime] = useState(null);
-      const [tracking, setTracking] = useState(false);
-      const [now, setNow] = useState(Date.now());
-      const [statusMsg, setStatusMsg] = useState("");
-      const [calibratedAt, setCalibratedAt] = useState(null);
-      const [calibratedLoc, setCalibratedLoc] = useState(null);
-      const [soundEnabled, setSoundEnabled] = useState(true);
+      const [tracking,          setTracking]          = useState(false);
+      const [now,               setNow]               = useState(Date.now());
+      const [statusMsg,         setStatusMsg]         = useState("");
+      const [calibratedAt,      setCalibratedAt]      = useState(null);
+      const [calibratedLoc,     setCalibratedLoc]     = useState(null);
+      const [soundEnabled,      setSoundEnabled]      = useState(true);
       const notifiedRef = useRef(null);
 
+
+      // ── Initialization ───────────────────────────────────────────
+      // On first mount: check if the URL hash contains a share code and auto-load it.
+      // This lets shared links drop directly into the tracking screen.
       useEffect(() => {
         const hash = window.location.hash.slice(1);
         if (hash) {
@@ -181,156 +308,180 @@
             setStartRealTime(state.startRealTime);
             setStartInstanceTime(state.startInstanceTime);
             setOffset(state.offset);
-            setUncertainty(state.uncertainty);
-            setCalibCount(state.uncertainty <= 0.5 ? 2 : state.uncertainty <= 1 ? 1 : 0);
             setTracking(true);
             setStatusMsg("Loaded from shared link");
           }
         }
       }, []);
 
+
+      // ── URL sync ─────────────────────────────────────────────────
+      // Keep the URL hash up to date so the browser history / Copy Link
+      // always reflects the current tracker state (including any calibration).
       useEffect(() => {
         if (tracking && startRealTime) {
-          const code = encodeShareState(startRealTime, startInstanceTime, offset, uncertainty);
+          const code = encodeShareState(startRealTime, startInstanceTime, offset);
           history.replaceState(null, '', '#' + code);
         } else if (!tracking) {
           history.replaceState(null, '', window.location.pathname);
         }
-      }, [tracking, startRealTime, startInstanceTime, offset, uncertainty]);
+      }, [tracking, startRealTime, startInstanceTime, offset]);
 
+
+      // ── Clock ─────────────────────────────────────────────────────
+      // Tick "now" every second. Every derived value (remaining time, status,
+      // tab title, etc.) reads from "now" so they all update in lockstep.
       useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000);
-        return () => clearInterval(interval);
+        return () => clearInterval(interval); // clean up on unmount
       }, []);
 
+
+      // ── Schedule calculation ──────────────────────────────────────
+      // How many minutes the instance has been running right now.
+      // startInstanceTime is how old it was when we started; elapsed real time is added each tick.
       const currentInstanceTime = useMemo(() => {
         if (!tracking || !startRealTime) return 0;
         return startInstanceTime + (now - startRealTime) / 60000;
       }, [tracking, startRealTime, startInstanceTime, now]);
 
+      // Build a list of the next 6 FATEs and their current status.
+      // We start one before the "current" FATE so we catch any that just passed.
       const getSchedule = useCallback(() => {
         const instTime = currentInstanceTime;
-        const startN = Math.max(0, Math.floor((instTime - offset - FATE_START) / FATE_INTERVAL) - 1);
-        const fates = [];
+        const startN   = Math.max(0, Math.floor((instTime - offset - FATE_START) / FATE_INTERVAL) - 1);
+        const fates    = [];
+
         for (let n = startN; fates.length < 6; n++) {
-          const t = fateTime(n);
-          const adj = t + offset;
-          const remaining = adj - instTime;
-          const earlyRemaining = remaining - uncertainty;
-          const lateRemaining = remaining + uncertainty;
+          const adj       = fateTime(n) + offset; // predicted spawn time adjusted for calibration
+          const remaining = adj - instTime;        // minutes until this FATE spawns (negative = past)
+
           let status = "passed";
-          if (earlyRemaining > 0.15) status = "upcoming";
-          else if (lateRemaining > -0.5 && n !== defeatedIdx) status = "window";
-          fates.push({ n, time: adj, loc: fateLoc(n), remaining, earlyRemaining, lateRemaining, status });
+          if (remaining > 0.15)                                  status = "upcoming"; // more than ~9s away
+          else if (remaining > -0.5 && n !== defeatedIdx)        status = "window";  // spawning now (within 30s window)
+          // If remaining <= -0.5 or this is the defeated FATE, status stays "passed"
+
+          fates.push({ n, time: adj, loc: fateLoc(n), remaining, status });
         }
         return fates;
-      }, [currentInstanceTime, offset, uncertainty, defeatedIdx]);
+      }, [currentInstanceTime, offset, defeatedIdx]);
 
+      // Derived display values — recomputed each render
+      const schedule         = getSchedule();
+      const upcoming         = schedule.filter(f => f.status === "upcoming" || f.status === "window");
+      const next             = upcoming[0] || null; // the FATE we're counting down to
+      const afterNext        = upcoming[1] || null; // the one after that, shown as a secondary card
+      const showConfirmation = calibratedAt && (now - calibratedAt < 30000); // 30s "Active now" banner
+
+
+      // ── Event handlers ────────────────────────────────────────────
+
+      // handleStart: called when the user taps North Pots or South Pots on the setup screen.
+      //   "playerMin" = how many minutes they think until the next FATE.
+      //   "location"  = which FATE they're expecting next (North or South).
+      //   We back-calculate the instance age: if North is 5 min away and we're 3 min into the instance,
+      //   then firstTime (5) - playerMin (3) = instanceTime (2 min into instance).
+      //   The while loop handles wrap-around (e.g. if North spawns every 60min, we stay ≥ 0).
       function handleStart(location) {
         if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission();
+          Notification.requestPermission(); // ask for notification permission on first start
         }
-        const mins = parseInt(playerMin, 10) || 0;
-        const firstTime = location === "North" ? 5 : 35;
-        let instanceTime = firstTime - mins;
-        while (instanceTime < 0) instanceTime += 60;
+        const mins        = parseInt(playerMin, 10) || 0;
+        const firstTime   = location === "North" ? 5 : 35; // when this location first appears in the schedule
+        let instanceTime  = firstTime - mins;
+        while (instanceTime < 0) instanceTime += FATE_INTERVAL * 2; // wrap to keep non-negative
         setStartInstanceTime(instanceTime);
         setStartRealTime(Date.now());
         setTracking(true);
         setOffset(0);
-        setUncertainty(TOLERANCE);
-        setCalibCount(0);
         setDefeatedIdx(null);
         notifiedRef.current = null;
-        setStatusMsg(`Tracking from ${location} estimate (\u00b11 min window)`);
+        setStatusMsg(`Tracking from ${location} estimate`);
       }
 
+      // handleCalibrate: called when the user sees a FATE actually spawn.
+      //   We identify which FATE index "n" best matches the current moment given the location,
+      //   then compute how far off our prediction was. That error becomes the new offset,
+      //   shifting all future predictions to match reality.
+      //   North FATEs: n = 0, 2, 4, ... (60 min apart)
+      //   South FATEs: n = 1, 3, 5, ... (60 min apart)
       function handleCalibrate(location) {
         const instTime = currentInstanceTime;
-        // North FATEs at n=0,2,4,... (times 5,65,125,...) spaced 60min
-        // South FATEs at n=1,3,5,... (times 35,95,155,...) spaced 60min
         const baseTime = location === "North" ? 5 : 35;
-        const k = Math.max(0, Math.round((instTime - offset - baseTime) / 60));
-        const bestN = location === "North" ? k * 2 : k * 2 + 1;
-
+        // k = how many full 60-min cycles of this location have passed
+        const k      = Math.max(0, Math.round((instTime - offset - baseTime) / 60));
+        const bestN  = location === "North" ? k * 2 : k * 2 + 1;
+        // newOffset = how many minutes reality is ahead of or behind the predicted schedule
         const newOffset = instTime - fateTime(bestN);
         setDefeatedIdx(bestN);
         setOffset(newOffset);
         setCalibratedAt(Date.now());
         setCalibratedLoc(location);
-        const newCount = calibCount + 1;
-        setCalibCount(newCount);
-
-        if (newCount === 1) {
-          setUncertainty(1);
-          setStatusMsg(`Calibrated to ${location} spawn! Shifted by ${newOffset > 0 ? "+" : ""}${newOffset.toFixed(1)} min. Now \u00b11 min.`);
-        } else {
-          setUncertainty(0.5);
-          setStatusMsg(`Re-calibrated to ${location} spawn! Precision: \u00b130 sec.`);
-        }
+        setStatusMsg(`Calibrated to ${location} spawn!`);
       }
 
+      // handleReset: clear all state and return to the setup screen
       function handleReset() {
         setTracking(false);
         setPlayerMin("");
-        setOffset(0); setUncertainty(TOLERANCE);
-        setCalibCount(0); setDefeatedIdx(null); setCalibratedAt(null); setCalibratedLoc(null);
+        setOffset(0);
+        setDefeatedIdx(null); setCalibratedAt(null); setCalibratedLoc(null);
         setStartRealTime(null); setStartInstanceTime(null);
         notifiedRef.current = null;
         setStatusMsg("");
       }
 
+      // handleShare: encode current state as a URL and copy to clipboard
       function handleShare() {
-        const code = encodeShareState(startRealTime, startInstanceTime, offset, uncertainty);
-        const url = `${window.location.origin}/${code}`;
-        navigator.clipboard.writeText(url).then(() => {
-          setStatusMsg("Link copied to clipboard!");
-        }).catch(() => {
-          setStatusMsg(url);
-        });
+        const code = encodeShareState(startRealTime, startInstanceTime, offset);
+        const url  = `${window.location.origin}/${code}`;
+        navigator.clipboard.writeText(url)
+          .then(()  => setStatusMsg("Link copied to clipboard!"))
+          .catch(()  => setStatusMsg(url)); // fallback: display the URL so they can copy manually
       }
 
+      // handleJoin: parse a 4-word code from the join box and load that tracker state
       function handleJoin() {
-        const code = joinCode.trim().toLowerCase();
+        const code  = joinCode.trim().toLowerCase();
         const state = decodeShareState(code);
         if (!state) { setStatusMsg("Invalid tracker code"); return; }
         setStartRealTime(state.startRealTime);
         setStartInstanceTime(state.startInstanceTime);
         setOffset(state.offset);
-        setUncertainty(state.uncertainty);
-        setCalibCount(state.uncertainty <= 0.5 ? 2 : state.uncertainty <= 1 ? 1 : 0);
         setTracking(true);
         setJoinCode("");
         notifiedRef.current = null;
         setStatusMsg("Loaded from shared code");
       }
 
-      const schedule = getSchedule();
-      const upcoming = schedule.filter(f => f.status === "upcoming" || f.status === "window");
-      const next = upcoming[0] || null;
-      const afterNext = upcoming[1] || null;
-      const showConfirmation = calibratedAt && (now - calibratedAt < 30000);
 
+      // ── Effects ───────────────────────────────────────────────────
+
+      // Auto-advance: if the predicted spawn time passes without the user calibrating,
+      // mark it as defeated so the next FATE becomes the countdown target.
+      // remaining < 0 means we're past the predicted time; -0.5 is the "window" cutoff
+      // so this fires right as the FATE transitions from "window" to "passed".
       useEffect(() => {
         if (!tracking || !next) return;
         if (next.remaining < 0) {
           setDefeatedIdx(next.n);
-          setUncertainty(3);
-          setCalibratedAt(null);
-          setStatusMsg(`Auto-advanced past ${next.loc} \u2014 accuracy \u00b13 min`);
+          setCalibratedAt(null); // hide the "Active now" banner from the previous calibration
         }
       }, [tracking, now]);
 
-      // Alert when spawn window opens
+      // Alert: fire sound + system notification exactly once when a FATE enters "window" status.
+      // notifiedRef prevents re-triggering on every re-render while the FATE is still in window.
       useEffect(() => {
         if (!tracking || !next) return;
         if (next.status === "window" && notifiedRef.current !== next.n) {
           notifiedRef.current = next.n;
           if (soundEnabled) playAlertSound();
-          sendNotification(`${next.loc} Pots FATE`, calibCount > 0 ? `Spawning now! Head to ${next.loc}!` : "Spawn window is open");
+          sendNotification(`${next.loc} Pots FATE`, `Spawning now! Head to ${next.loc}!`);
         }
       }, [tracking, next?.status, next?.n, soundEnabled]);
 
+      // Tab title: show the countdown in the browser tab so players can monitor it
+      // while tabbed into the game. Resets to the default title when not tracking.
       useEffect(() => {
         if (next && tracking) {
           const mins = Math.max(0, Math.floor(next.remaining));
@@ -340,11 +491,11 @@
         }
       }, [next, tracking, now]);
 
-      const confidenceColor = uncertainty <= 0.5 ? "#34d399" : uncertainty <= 1 ? "#6ee7b7" : uncertainty <= 3 ? "#fcd34d" : "#fdba74";
-      const confidenceLabel = uncertainty <= 0.5 ? "High" : uncertainty <= 1 ? "Good" : uncertainty <= 3 ? "Fair" : "Estimate";
 
+      // ── Render ─────────────────────────────────────────────────────
       return (
         <div>
+          {/* ── Header ── */}
           <header>
             <h1 style={{ fontSize: 24, fontWeight: 700, textAlign: "center", marginBottom: 2, fontFamily: "'Cinzel', serif", background: "linear-gradient(180deg, #d4c078, #bfa34c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Occult Crescent South
@@ -355,11 +506,12 @@
             <div role="separator" style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(191,163,76,0.5), transparent)", marginBottom: 20 }} />
           </header>
 
+          {/* ── How it works (collapsible, visible on both screens) ── */}
           <details style={{ marginBottom: 16, fontSize: 12, color: "#6e6b65", lineHeight: 1.6 }}>
             <summary style={{ cursor: "pointer", color: "#a9a6a0", fontSize: 13, fontWeight: 600 }}>How it works</summary>
             <div style={{ ...cardStyle, marginTop: 8 }}>
-              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Getting started:</strong> Enter your best guess for how many minutes until the next Pots FATE, then tap North or South to pick the location. The tracker will start a countdown with a {"\u00b1"}1 minute confidence window.</p>
-              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Calibrating:</strong> When a FATE actually spawns, tap the matching North/South button on the calibration card. This snaps the schedule to the real spawn time {"\u2014"} first calibration tightens to {"\u00b1"}1 min, a second gets you to {"\u00b1"}30 sec.</p>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Getting started:</strong> Enter your best guess for how many minutes until the next Pots FATE, then tap North or South to pick the location. The tracker will start counting down to the predicted spawn time.</p>
+              <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Calibrating:</strong> When a FATE actually spawns, tap the matching North/South button on the calibration card. This snaps the entire schedule to the real spawn time for maximum accuracy going forward.</p>
               <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Sharing:</strong> Copy the tracker code or link to share with your party. They can paste the code in the join box or open the link to see the same countdown. Note: if you calibrate, the code updates {"\u2014"} share the new one for best accuracy.</p>
               <p style={{ marginBottom: 10 }}><strong style={{ color: "#d4c078" }}>Tab timer:</strong> While tracking, the browser tab title shows the minutes remaining, so you can see the countdown even while tabbed into the game.</p>
               <p><strong style={{ color: "#d4c078" }}>Add to home screen:</strong> On mobile, use your browser{"\u2019"}s "Add to Home Screen" option to install this as an app. It will open full-screen without the browser toolbar.</p>
@@ -368,18 +520,24 @@
 
           <main>
           {!tracking ? (
+
+            // ── Setup screen ──────────────────────────────────────────
+            // Shown before tracking starts. User enters their estimate and picks a location,
+            // or joins an existing tracker via a shared code.
             <section style={cardStyle} aria-label="Setup">
               <label htmlFor="playerMin" style={{ fontSize: 14, color: "#a9a6a0", marginBottom: 12, display: "block" }}>
                 Estimated minutes until next Pots FATE:
               </label>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <input id="playerMin" type="number" min="0" max="60" placeholder="0" value={playerMin} onChange={(e) => setPlayerMin(e.target.value)} style={{ ...inputStyle, width: 100 }} />
+                  <input id="playerMin" type="number" min="0" max="60" placeholder="0"
+                    value={playerMin} onChange={(e) => setPlayerMin(e.target.value)}
+                    style={{ ...inputStyle, width: 100 }} />
                   <span style={{ fontSize: 11, color: "#6e6b65", marginTop: 4 }}>minutes</span>
                 </div>
               </div>
               <p style={{ fontSize: 11, color: "#6e6b65", marginBottom: 16, lineHeight: 1.5 }}>
-                Enter your best guess, then tap which location it will be. Predictions start {"\u00b1"}1 min {"\u2014"} calibrate when a FATE spawns to tighten it.
+                Enter your best guess, then tap which location it will be. Calibrate when a FATE spawns to sync the schedule.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => handleStart("North")} style={btnNorth}>
@@ -394,84 +552,80 @@
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(191,163,76,0.15)" }}>
                 <div style={{ fontSize: 12, color: "#6e6b65", marginBottom: 8 }}>Or join an existing tracker:</div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input type="text" placeholder="flame-frost-stone-wind" aria-label="Tracker code" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleJoin()} style={{ ...inputStyle, flex: 1, width: "auto", fontSize: 14, textAlign: "left", padding: "8px 10px" }} />
+                  <input type="text" placeholder="flame-frost-stone-wind" aria-label="Tracker code"
+                    value={joinCode} onChange={(e) => setJoinCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                    style={{ ...inputStyle, flex: 1, width: "auto", fontSize: 14, textAlign: "left", padding: "8px 10px" }} />
                   <button onClick={handleJoin} style={{ ...btnBase, width: "auto", padding: "8px 16px", background: "rgba(16,33,62,0.6)", color: "#d4c078", border: "1px solid rgba(191,163,76,0.3)", fontSize: 13 }}>Join</button>
                 </div>
                 {statusMsg && !tracking && <p style={{ fontSize: 11, color: "#fdba74", marginTop: 8 }}>{statusMsg}</p>}
               </div>
             </section>
+
           ) : (
+
+            // ── Tracking screen ───────────────────────────────────────
+            // Shown while the countdown is running.
             <>
               <section aria-label="FATE countdown" aria-live="polite">
-              {showConfirmation && calibratedLoc && (
-                <div style={{ ...cardStyle, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", borderColor: "rgba(52,211,153,0.3)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc) }}>{calibratedLoc} Pots FATE</div>
-                      <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
-                </div>
-              )}
-              {next && (
-                <div style={locCardStyle(next.loc)}>
-                  <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
-                  <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
-                    {next.loc}
-                  </div>
-                  <div style={{ fontSize: 11, color: confidenceColor, marginBottom: 10 }}>
-                    {confidenceLabel} accuracy <span style={{ fontWeight: 400, opacity: 0.8 }}>({"\u00b1"}{uncertainty <= 1 ? `${Math.round(uncertainty * 60)}s` : `${uncertainty}m`})</span>
-                  </div>
-                  {next.status === "window" ? (
-                    <div>
-                      <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{calibCount > 0 ? "\u26a1 Spawning!" : "\u26a1 Spawn window open"}</div>
-                      <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>{calibCount > 0 ? `Head to ${next.loc}!` : `Estimated window \u2014 up to ${fmtShort(Math.max(0, next.lateRemaining))} from now`}</div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 13, color: "#a9a6a0", marginBottom: 4 }}>Spawns in</div>
-                      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6 }}>
-                        <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.earlyRemaining))}</span>
-                        <span style={{ fontSize: 32, fontWeight: 700, color: "#e8e4dc" }}>{fmtShort(Math.max(0, next.remaining))}</span>
-                        <span style={{ fontSize: 12, color: confidenceColor }}>{fmtShort(Math.max(0, next.lateRemaining))}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: "#a9a6a0", marginTop: 4 }}>early {"\u2014"} best guess {"\u2014"} late</div>
-                      <div style={{ fontSize: 14, color: "#d4c078", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
-                      <div style={{ marginTop: 14, height: 5, borderRadius: 2, background: "rgba(191,163,76,0.1)", position: "relative", overflow: "hidden" }}>
-                        {(() => {
-                          const total = 30;
-                          const center = Math.max(0, Math.min(next.remaining, total));
-                          const early = Math.max(0, center - uncertainty);
-                          const late = Math.min(total, center + uncertainty);
-                          return <div style={{ position: "absolute", left: `${(early / total) * 100}%`, width: `${((late - early) / total) * 100}%`, height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${confidenceColor}44, ${confidenceColor}aa, ${confidenceColor}44)` }} />;
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {afterNext && (
-                <div style={{
-                  ...cardStyle, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center",
-                }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: "#a9a6a0" }}>After That</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: locColor(afterNext.loc), fontFamily: "'Cinzel', serif" }}>{afterNext.loc}</div>
+                {/* "Active now" banner — visible for 30s after a calibration button is pressed */}
+                {showConfirmation && calibratedLoc && (
+                  <div style={{ ...cardStyle, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", borderColor: "rgba(52,211,153,0.3)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc) }}>{calibratedLoc} Pots FATE</div>
+                        <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: "#e8e4dc" }}>{fmtShort(Math.max(0, afterNext.remaining))}</div>
-                    <div style={{ fontSize: 12, color: "#a9a6a0" }}>~{fmtTime(afterNext.remaining)}</div>
+                )}
+
+                {/* Next FATE countdown card */}
+                {next && (
+                  <div style={locCardStyle(next.loc)}>
+                    <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
+                    <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
+                      {next.loc}
+                    </div>
+                    {next.status === "window" ? (
+                      // Spawn window is open — the FATE is happening right now
+                      <div>
+                        <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{"\u26a1 Spawning!"}</div>
+                        <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Head to {next.loc}!</div>
+                      </div>
+                    ) : (
+                      // Countdown to predicted spawn time
+                      <div>
+                        <div style={{ fontSize: 13, color: "#a9a6a0", marginBottom: 4 }}>Spawns in</div>
+                        <div style={{ fontSize: 48, fontWeight: 700, color: "#e8e4dc" }}>{fmtShort(Math.max(0, next.remaining))}</div>
+                        <div style={{ fontSize: 14, color: "#d4c078", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Secondary card: the FATE after next, so you can plan ahead */}
+                {afterNext && (
+                  <div style={{ ...cardStyle, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#a9a6a0" }}>After That</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: locColor(afterNext.loc), fontFamily: "'Cinzel', serif" }}>{afterNext.loc}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: "#e8e4dc" }}>{fmtShort(Math.max(0, afterNext.remaining))}</div>
+                      <div style={{ fontSize: 12, color: "#a9a6a0" }}>~{fmtTime(afterNext.remaining)}</div>
+                    </div>
+                  </div>
+                )}
               </section>
 
+              {/* Calibration card — press when you see a FATE actually spawn */}
               <section aria-label="Calibration" style={{ ...cardStyle, marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#d4c078", marginBottom: 6 }}>
-                  {calibCount > 0 ? "Re-Calibrate" : "Calibrate"} {"\u2014"} FATE Just Spawned?
+                  Calibrate {"\u2014"} FATE Just Spawned?
                 </div>
                 <p style={{ fontSize: 12, color: "#6e6b65", marginBottom: 14, lineHeight: 1.5 }}>
                   When a FATE spawns, tap the matching location button to sync the schedule.
@@ -486,21 +640,29 @@
                     <span>South Spawned</span>
                   </button>
                 </div>
-                {statusMsg && <p style={{ fontSize: 11, color: confidenceColor, marginTop: 10 }}>{statusMsg}</p>}
+                {statusMsg && <p style={{ fontSize: 11, color: "#d4c078", marginTop: 10 }}>{statusMsg}</p>}
               </section>
 
+              {/* Tracker code display — green border pulse when updated by calibration */}
               <div style={{ ...cardStyle, marginBottom: 16, textAlign: "center", transition: "border-color 0.3s", borderColor: showConfirmation ? "rgba(52,211,153,0.5)" : "rgba(191,163,76,0.25)" }}>
                 <div style={{ fontSize: 11, color: "#6e6b65", marginBottom: 4 }}>
                   Tracker Code {showConfirmation && <span style={{ color: "#34d399" }}>{"\u2014"} updated</span>}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: "#d4c078", fontFamily: "monospace", letterSpacing: 0.5 }}>
-                  {encodeShareState(startRealTime, startInstanceTime, offset, uncertainty)}
+                  {encodeShareState(startRealTime, startInstanceTime, offset)}
                 </div>
               </div>
+
+              {/* Share buttons */}
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={handleShare} style={{ ...btnBase, flex: 1, background: "linear-gradient(135deg, #8c7635, #bfa34c)", border: "1px solid rgba(191,163,76,0.4)" }}>Copy Link</button>
-                <button onClick={() => { const code = encodeShareState(startRealTime, startInstanceTime, offset, uncertainty); navigator.clipboard.writeText(code).then(() => setStatusMsg("Code copied!")).catch(() => setStatusMsg(code)); }} style={{ ...btnBase, flex: 1, background: "rgba(16,33,62,0.6)", color: "#d4c078", border: "1px solid rgba(191,163,76,0.3)" }}>Copy Code</button>
+                <button onClick={() => {
+                  const code = encodeShareState(startRealTime, startInstanceTime, offset);
+                  navigator.clipboard.writeText(code).then(() => setStatusMsg("Code copied!")).catch(() => setStatusMsg(code));
+                }} style={{ ...btnBase, flex: 1, background: "rgba(16,33,62,0.6)", color: "#d4c078", border: "1px solid rgba(191,163,76,0.3)" }}>Copy Code</button>
               </div>
+
+              {/* Sound toggle + Reset link */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6e6b65", cursor: "pointer" }}>
                   <input type="checkbox" checked={soundEnabled} onChange={(e) => setSoundEnabled(e.target.checked)} style={{ accentColor: "#d4c078" }} />
