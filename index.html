@@ -313,7 +313,7 @@
 
       useEffect(() => {
         if (!tracking || !next) return;
-        if (next.remaining < -3) {
+        if (next.remaining < 0) {
           setDefeatedIdx(next.n);
           setUncertainty(3);
           setCalibratedAt(null);
