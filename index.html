@@ -569,47 +569,46 @@
             <>
               <section aria-label="FATE countdown" aria-live="polite">
 
-                {/* "Active now" banner — visible for 30s after a calibration button is pressed.
-                    Uses opacity instead of conditional rendering so it doesn't shift the
-                    layout when it appears/disappears. */}
-                <div style={{
-                  ...cardStyle, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between",
-                  borderColor: "rgba(52,211,153,0.3)",
-                  opacity: showConfirmation && calibratedLoc ? 1 : 0,
-                  transition: "opacity 0.3s",
-                  pointerEvents: showConfirmation && calibratedLoc ? "auto" : "none"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc || "North") }}>{calibratedLoc} Pots FATE</div>
-                      <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
-                </div>
-
-                {/* Next FATE countdown card */}
+                {/* Next FATE countdown card — fixed height so nothing below shifts
+                    when the content toggles between countdown and "Spawning!" states,
+                    or when the "Active now" banner appears after calibration. */}
                 {next && (
-                  <div style={locCardStyle(next.loc)}>
-                    <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
-                    <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
-                      {next.loc}
-                    </div>
-                    {/* minHeight keeps this area the same size in both states so the
-                        calibration buttons below don't jump when the content changes */}
-                    {next.status === "window" ? (
-                      <div style={{ minHeight: 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                        <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{"\u26a1 Spawning!"}</div>
-                        <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Head to {next.loc}!</div>
-                      </div>
-                    ) : (
-                      <div style={{ minHeight: 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                        <div style={{ fontSize: 13, color: "#a9a6a0", marginBottom: 4 }}>Spawns in</div>
-                        <div style={{ fontSize: 48, fontWeight: 700, color: "#e8e4dc" }}>{fmtShort(Math.max(0, next.remaining))}</div>
-                        <div style={{ fontSize: 14, color: "#d4c078", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
+                  <div style={{ ...locCardStyle(next.loc), height: 210, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    {/* "Active now" banner — shown inside the card for 30s after calibration */}
+                    {showConfirmation && calibratedLoc && (
+                      <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        marginBottom: 12, paddingBottom: 12,
+                        borderBottom: "1px solid rgba(52,211,153,0.2)"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc) }}>{calibratedLoc} Pots FATE</div>
+                            <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
                       </div>
                     )}
+                    <div style={{ textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
+                      <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
+                        {next.loc}
+                      </div>
+                      {next.status === "window" ? (
+                        <div>
+                          <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{"\u26a1 Spawning!"}</div>
+                          <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Head to {next.loc}!</div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize: 13, color: "#a9a6a0", marginBottom: 4 }}>Spawns in</div>
+                          <div style={{ fontSize: 48, fontWeight: 700, color: "#e8e4dc" }}>{fmtShort(Math.max(0, next.remaining))}</div>
+                          <div style={{ fontSize: 14, color: "#d4c078", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
