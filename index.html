@@ -569,19 +569,25 @@
             <>
               <section aria-label="FATE countdown" aria-live="polite">
 
-                {/* "Active now" banner — visible for 30s after a calibration button is pressed */}
-                {showConfirmation && calibratedLoc && (
-                  <div style={{ ...cardStyle, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", borderColor: "rgba(52,211,153,0.3)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc) }}>{calibratedLoc} Pots FATE</div>
-                        <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
-                      </div>
+                {/* "Active now" banner — visible for 30s after a calibration button is pressed.
+                    Uses opacity instead of conditional rendering so it doesn't shift the
+                    layout when it appears/disappears. */}
+                <div style={{
+                  ...cardStyle, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between",
+                  borderColor: "rgba(52,211,153,0.3)",
+                  opacity: showConfirmation && calibratedLoc ? 1 : 0,
+                  transition: "opacity 0.3s",
+                  pointerEvents: showConfirmation && calibratedLoc ? "auto" : "none"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 16, color: "#34d399" }}>{"\u2714"}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: locColor(calibratedLoc || "North") }}>{calibratedLoc} Pots FATE</div>
+                      <div style={{ fontSize: 11, color: "#6e6b65" }}>Active now</div>
                     </div>
-                    <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
                   </div>
-                )}
+                  <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
+                </div>
 
                 {/* Next FATE countdown card */}
                 {next && (
@@ -590,15 +596,15 @@
                     <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
                       {next.loc}
                     </div>
+                    {/* minHeight keeps this area the same size in both states so the
+                        calibration buttons below don't jump when the content changes */}
                     {next.status === "window" ? (
-                      // Spawn window is open — the FATE is happening right now
-                      <div>
+                      <div style={{ minHeight: 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                         <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{"\u26a1 Spawning!"}</div>
                         <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Head to {next.loc}!</div>
                       </div>
                     ) : (
-                      // Countdown to predicted spawn time
-                      <div>
+                      <div style={{ minHeight: 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                         <div style={{ fontSize: 13, color: "#a9a6a0", marginBottom: 4 }}>Spawns in</div>
                         <div style={{ fontSize: 48, fontWeight: 700, color: "#e8e4dc" }}>{fmtShort(Math.max(0, next.remaining))}</div>
                         <div style={{ fontSize: 14, color: "#d4c078", marginTop: 10 }}>~{fmtTime(next.remaining)}</div>
