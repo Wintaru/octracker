@@ -476,7 +476,7 @@
         if (next.status === "window" && notifiedRef.current !== next.n) {
           notifiedRef.current = next.n;
           if (soundEnabled) playAlertSound();
-          sendNotification(`${next.loc} Pots FATE`, `Spawning now! Head to ${next.loc}!`);
+          sendNotification(`${next.loc} Pots FATE`, `Spawning now! Head ${next.loc}!`);
         }
       }, [tracking, next?.status, next?.n, soundEnabled]);
 
@@ -599,7 +599,7 @@
                       {next.status === "window" ? (
                         <div>
                           <div style={{ fontSize: 26, fontWeight: 700, color: "#fbbf24" }}>{"\u26a1 Spawning!"}</div>
-                          <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Head to {next.loc}!</div>
+                          <div style={{ fontSize: 12, color: "#a9a6a0", marginTop: 4 }}>Head {next.loc}!</div>
                         </div>
                       ) : (
                         <div>
