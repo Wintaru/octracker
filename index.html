@@ -282,6 +282,16 @@
       // calibratedLoc  : which location was calibrated (North/South), shown in the banner
       // soundEnabled   : whether to play the chime when a FATE enters spawn window
       // notifiedRef    : tracks which FATE index we last alerted, so we don't re-fire on re-renders
+      const [character, setCharacter] = useState(null);
+
+      // Fetch character profile from character.json (updated weekly by GitHub Actions)
+      useEffect(() => {
+        fetch("character.json")
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data) setCharacter(data); })
+          .catch(() => {});
+      }, []);
+
       const [playerMin,         setPlayerMin]         = useState("");
       const [joinCode,          setJoinCode]          = useState("");
       const [offset,            setOffset]            = useState(0);
@@ -678,6 +688,19 @@
             </>
           )}
           </main>
+
+          {character && (
+            <footer style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid rgba(191,163,76,0.15)", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#6e6b65" }}>By:</span>
+              <a href={character.lodestoneUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+                <img src={character.avatarUrl} alt={character.name} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(191,163,76,0.3)" }} />
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 13, color: "#a9a6a0", fontWeight: 600 }}>{character.name}</div>
+                  <div style={{ fontSize: 11, color: "#6e6b65" }}>{character.title}{character.title && " \u2014 "}{character.server} [{character.datacenter}]</div>
+                </div>
+              </a>
+            </footer>
+          )}
         </div>
       );
     }
