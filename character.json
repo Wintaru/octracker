@@ -4,6 +4,12 @@
   "server": "Ultros",
   "datacenter": "Primal",
   "avatarUrl": "https://img2.finalfantasyxiv.com/f/0a5f342fd0922c7fbd665c0620b81261_c514cdcdb619439df97d906d4434ccc6fc0.jpg?1773689791",
+  "freeCompany": "LootWhorinDramaFest",
+  "fcCrest": [
+    "https://img2.finalfantasyxiv.com/c/B1d_4679dbcfb2d8e73dff795a9bbcb22c4b_4b_40x40.png",
+    "https://img2.finalfantasyxiv.com/c/F07_44c51b7fa27d3b4f9c6b1ff2fba42b52_00_40x40.png",
+    "https://img2.finalfantasyxiv.com/c/S32_b14e4febe69b28e8e1cf7bb69daa3485_00_40x40.png"
+  ],
   "lodestoneUrl": "https://na.finalfantasyxiv.com/lodestone/character/492391/",
   "updatedAt": "2026-03-16"
 }

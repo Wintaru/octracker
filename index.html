@@ -697,6 +697,16 @@
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontSize: 13, color: "#a9a6a0", fontWeight: 600 }}>{character.name}</div>
                   <div style={{ fontSize: 11, color: "#6e6b65" }}>{character.title}{character.title && " \u2014 "}{character.server} [{character.datacenter}]</div>
+                  {character.freeCompany && character.fcCrest && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
+                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
+                        {character.fcCrest.map((src, i) => (
+                          <img key={i} src={src} alt="" style={{ position: "absolute", top: 0, left: 0, width: 20, height: 20 }} />
+                        ))}
+                      </div>
+                      <span style={{ fontSize: 11, color: "#6e6b65" }}>{character.freeCompany}</span>
+                    </div>
+                  )}
                 </div>
               </a>
             </footer>

@@ -38,12 +38,19 @@ def parse_character(html):
         server = server.strip()
         datacenter = rest.rstrip("]").strip()
 
+    # Free company name and crest (3 layered images)
+    fc_name = find(r'character__freecompany__name.*?<a[^>]+>([^<]+)</a>')
+    fc_crest_section = re.search(r'character__freecompany__crest__image(.*?)</div>', html, re.S)
+    fc_crest = re.findall(r'<img src="([^"]+)"', fc_crest_section.group(1)) if fc_crest_section else []
+
     return {
         "name":        name,
         "title":       title,
         "server":      server,
         "datacenter":  datacenter,
         "avatarUrl":   avatar_url,
+        "freeCompany": fc_name,
+        "fcCrest":     fc_crest,
         "lodestoneUrl": LODESTONE_URL,
         "updatedAt":   date.today().isoformat(),
     }
