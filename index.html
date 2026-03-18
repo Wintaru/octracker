@@ -577,13 +577,31 @@
             // ── Tracking screen ───────────────────────────────────────
             // Shown while the countdown is running.
             <>
+              {/* Calibration card — above the countdown so clicking never shifts the buttons */}
+              <section aria-label="Calibration" style={{ ...cardStyle, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#d4c078", marginBottom: 6 }}>
+                  Calibrate {"\u2014"} FATE Just Spawned?
+                </div>
+                <p style={{ fontSize: 12, color: "#6e6b65", marginBottom: 14, lineHeight: 1.5 }}>
+                  When a FATE spawns, tap the matching location button to sync the schedule.
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => handleCalibrate("North")} style={btnNorth}>
+                    <span style={{ fontSize: 18 }}>{"\u2726"}</span>
+                    <span>North Spawned</span>
+                  </button>
+                  <button onClick={() => handleCalibrate("South")} style={btnSouth}>
+                    <span style={{ fontSize: 18 }}>{"\u2726"}</span>
+                    <span>South Spawned</span>
+                  </button>
+                </div>
+                {statusMsg && <p style={{ fontSize: 11, color: "#d4c078", marginTop: 10 }}>{statusMsg}</p>}
+              </section>
+
               <section aria-label="FATE countdown" aria-live="polite">
 
-                {/* Next FATE countdown card — fixed height so nothing below shifts
-                    when the content toggles between countdown and "Spawning!" states,
-                    or when the "Active now" banner appears after calibration. */}
                 {next && (
-                  <div style={{ ...locCardStyle(next.loc), height: 210, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <div style={{ ...locCardStyle(next.loc), display: "flex", flexDirection: "column", justifyContent: "center" }}>
                     {/* "Active now" banner — shown inside the card for 30s after calibration */}
                     {showConfirmation && calibratedLoc && (
                       <div style={{
@@ -601,7 +619,7 @@
                         <div style={{ fontSize: 11, color: "#34d399" }}>Synced</div>
                       </div>
                     )}
-                    <div style={{ textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 12, color: "#a9a6a0", marginBottom: 4 }}>Next Pots FATE</div>
                       <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: locColor(next.loc), fontFamily: "'Cinzel', serif" }}>
                         {next.loc}
@@ -635,27 +653,6 @@
                     </div>
                   </div>
                 )}
-              </section>
-
-              {/* Calibration card — press when you see a FATE actually spawn */}
-              <section aria-label="Calibration" style={{ ...cardStyle, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#d4c078", marginBottom: 6 }}>
-                  Calibrate {"\u2014"} FATE Just Spawned?
-                </div>
-                <p style={{ fontSize: 12, color: "#6e6b65", marginBottom: 14, lineHeight: 1.5 }}>
-                  When a FATE spawns, tap the matching location button to sync the schedule.
-                </p>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button onClick={() => handleCalibrate("North")} style={btnNorth}>
-                    <span style={{ fontSize: 18 }}>{"\u2726"}</span>
-                    <span>North Spawned</span>
-                  </button>
-                  <button onClick={() => handleCalibrate("South")} style={btnSouth}>
-                    <span style={{ fontSize: 18 }}>{"\u2726"}</span>
-                    <span>South Spawned</span>
-                  </button>
-                </div>
-                {statusMsg && <p style={{ fontSize: 11, color: "#d4c078", marginTop: 10 }}>{statusMsg}</p>}
               </section>
 
               {/* Tracker code display — green border pulse when updated by calibration */}
