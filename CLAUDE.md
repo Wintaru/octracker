@@ -1,16 +1,20 @@
-# OC South Pots FATE Tracker — Project Context
+# OC Pots FATE Tracker — Project Context
 
 ## What This Is
 
-A single-page web app that predicts when "Pots" FATEs will spawn in the Occult Crescent South zone in Final Fantasy XIV. It's a self-contained HTML file using React via CDN (no build tools), hosted on GitHub Pages with a custom subdomain.
+A single-page web app that predicts when "Pots" FATEs will spawn in Occult Crescent's South Horn or North Horn zones in Final Fantasy XIV. It's a self-contained HTML file using React via CDN (no build tools), hosted on GitHub Pages with a custom subdomain.
 
 ## Game Mechanics
 
-- Occult Crescent South is an instanced zone that persists as long as players are in it. Individual players have a 180-minute cap on how long they can stay.
-- ~5 minutes after the instance is created, the first Pots FATE spawns at the **North** location.
+- Each Occult Crescent Horn (South Horn, North Horn) is an instanced zone that persists as long as players are in it. Individual players have a 180-minute cap on how long they can stay.
+- The Pots FATE schedule is identical in both Horns: ~10 minutes after the instance is created, the first Pots FATE spawns at the **North** location.
 - Every 30 minutes after that, a new FATE spawns, alternating North and South.
-- Full schedule: North @5m, South @35m, North @65m, South @95m, North @125m, South @155m.
+- Full schedule: North @10m, South @40m, North @70m, South @100m, North @130m, South @160m.
 - Players can see how long other players have been in the zone, but NOT when the instance was created.
+- "North"/"South" describe a FATE's slot in the shared schedule, not the Horn itself. Each Horn has its own pair of named FATEs at fixed map coordinates:
+  - South Horn: **Persistent Pots** (X:25.6, Y:17.1, North slot), **Pleading Pots** (X:11.9, Y:32.0, South slot)
+  - North Horn: **Daylight Pottery** (X:26.2, Y:11.6, North slot), **In a Pot of Bother** (X:11.0, Y:25.8, South slot)
+  - Source: [Icy Veins — Magic Pot Locations and Rewards](https://www.icy-veins.com/ffxiv/magic-pots)
 
 ## How the Tracker Works
 
@@ -49,9 +53,11 @@ A single-page web app that predicts when "Pots" FATEs will spawn in the Occult C
 - Confidence windows instead of exact predictions, since the initial estimate has inherent uncertainty.
 - North/South calibration buttons instead of a generic "FATE popped" button — knowing the location halves the ambiguity when snapping to the schedule.
 - Progressive accuracy: starts rough, gets precise with observation. No calibration needed if ±5 min is acceptable.
+- Horn selection (South Horn / North Horn) lives entirely in display data (`ZONES` in `index.html`) — the schedule math (`FATE_START`, `FATE_INTERVAL`, `fateTime`, `fateLoc`) is zone-agnostic since both Horns share the same timing. Adding a future Horn only means adding a `ZONES` entry.
+- The zone is encoded as 1 bit in the share-code word format so joined/shared trackers carry the correct Horn.
 
 ## Current State
 
-- Core tracker is fully functional.
+- Core tracker is fully functional, supporting both South Horn and North Horn.
 - GitHub Pages is configured, DNS CNAME is set, waiting on propagation/SSL.
 - README documents the prediction logic.

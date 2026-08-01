@@ -1,7 +1,7 @@
 {
-  "name": "OC South - Pots FATE Tracker",
+  "name": "OC Pots FATE Tracker",
   "short_name": "Pots Tracker",
-  "description": "Track Pots FATE spawn times in Occult Crescent South",
+  "description": "Track Pots FATE spawn times in Occult Crescent South Horn and North Horn",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f1a",

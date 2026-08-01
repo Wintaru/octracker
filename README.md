@@ -1,21 +1,32 @@
-# OC South Pots FATE Tracker
+# OC Pots FATE Tracker
 
-A simple timer tool for predicting when Pots FATEs will spawn in the Occult Crescent South instance in FFXIV.
+A simple timer tool for predicting when Pots FATEs will spawn in the Occult Crescent South Horn or North Horn instances in FFXIV.
 
 ## How It Works
 
 ### The FATE Schedule
 
-When an Occult Crescent South instance is created, Pots FATEs follow a fixed schedule:
+When an Occult Crescent instance is created, Pots FATEs follow a fixed schedule, identical in both Horns:
 
-- **FATE 1** — ~5 min after creation (North)
-- **FATE 2** — ~35 min (South)
-- **FATE 3** — ~65 min (North)
-- **FATE 4** — ~95 min (South)
-- **FATE 5** — ~125 min (North)
-- **FATE 6** — ~155 min (South)
+- **FATE 1** — ~10 min after creation (North)
+- **FATE 2** — ~40 min (South)
+- **FATE 3** — ~70 min (North)
+- **FATE 4** — ~100 min (South)
+- **FATE 5** — ~130 min (North)
+- **FATE 6** — ~160 min (South)
 
-FATEs spawn every 30 minutes, alternating between North and South, starting 5 minutes after the instance is created. The instance has a max lifetime of 180 minutes.
+FATEs spawn every 30 minutes, alternating between North and South, starting 10 minutes after the instance is created. The instance has a max lifetime of 180 minutes.
+
+### The Two Horns
+
+"North" and "South" describe a FATE's slot in the schedule above, not the Horn zone. Each Horn has its own pair of named Pots FATEs at fixed map coordinates:
+
+| Horn | North slot | South slot |
+|---|---|---|
+| South Horn | Persistent Pots (X:25.6, Y:17.1) | Pleading Pots (X:11.9, Y:32.0) |
+| North Horn | Daylight Pottery (X:26.2, Y:11.6) | In a Pot of Bother (X:11.0, Y:25.8) |
+
+Pick your Horn on the setup screen before starting the tracker.
 
 ### The Problem
 
